@@ -1,0 +1,69 @@
+name: SoftGPU CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: softgpu-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-macos:
+    name: core (macOS aarch64)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain (rust-toolchain.toml)
+        run: rustup show
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Build and test (locked)
+        run: cargo test --locked
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Doc link check
+        run: bash tools/check-docs-links.sh
+      - name: Validate bundled profiles
+        run: |
+          cargo run --locked -- validate-profile profiles/softgpu-generic-v0.json
+          cargo run --locked -- validate-profile profiles/amd-radeon-ai-pro-r9700-gfx1201-v0.json
+
+  core-linux:
+    name: core (Linux x86_64, no ROCm)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain (rust-toolchain.toml)
+        run: rustup show
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Build and test (locked)
+        run: cargo test --locked
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Doc link check
+        run: bash tools/check-docs-links.sh
+
+  # Canonical ROCm/HIP integration gate — NOT implemented in Phase 0.
+  # This job must remain skipped (not a green "success" fake).
+  rocm-integration:
+    name: ROCm/HIP integration (x86_64) — Phase 1+
+    runs-on: ubuntu-24.04
+    # Explicit skip until Phase 1 pins an official ROCm image and load proof.
+    if: false
+    steps:
+      - name: Placeholder
+        run: echo "Phase 1 will replace this with pinned ROCm load proofs"
+
+  # Annotate the matrix clearly in GitHub's UI via a always-running reporter.
+  ci-result-policy:
+    name: CI result policy (skipped ≠ passed)
+    runs-on: ubuntu-24.04
+    needs: [core-macos, core-linux]
+    steps:
+      - name: Record Phase 0 gate status
+        run: |
+          echo "core-macos and core-linux are required and must pass."
+          echo "rocm-integration is intentionally skipped (if: false) until Phase 1."
+          echo "Do not treat a skipped ROCm job as SoftGPU ROCm compatibility."

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "profile_id": "softgpu-generic",
+  "profile_revision": "0",
+  "identity": {
+    "vendor": "SoftGPU",
+    "product_name": "Generic Test Device",
+    "architecture_family": "softgpu-abstract",
+    "llvm_target": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "generic profile has no LLVM AMDGPU target"
+    }
+  },
+  "max_fidelity": "abi",
+  "conformance_allowed": false,
+  "resource_limits": {
+    "max_workgroup_size_x": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "not established"
+    },
+    "max_workgroup_size_y": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "not established"
+    },
+    "max_workgroup_size_z": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "not established"
+    },
+    "wavefront_size": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "not established"
+    }
+  },
+  "analytical_performance": {
+    "notes": [
+      "Phase 0: no analytical performance parameters are defined"
+    ]
+  },
+  "quirks": []
+}

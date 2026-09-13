@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "updated": "2026-09-13",
+  "states": [
+    "implemented-unverified",
+    "verified-unit",
+    "verified-integration",
+    "hardware-differential",
+    "experimental",
+    "unsupported"
+  ],
+  "entries": [
+    {
+      "id": "host-macos-aarch64-rust-1.85",
+      "category": "host-toolchain",
+      "state": "verified-unit",
+      "phase": 0
+    },
+    {
+      "id": "host-linux-x86_64-rust-1.85-no-rocm",
+      "category": "host-toolchain",
+      "state": "verified-unit",
+      "phase": 0
+    },
+    {
+      "id": "host-linux-x86_64-rocm-hip-integration",
+      "category": "host-toolchain",
+      "state": "unsupported",
+      "phase": 1,
+      "ci_policy": "must-skip-not-pass"
+    },
+    {
+      "id": "abi-rocr-hsa-cdylib",
+      "category": "abi",
+      "state": "unsupported",
+      "phase": 1
+    },
+    {
+      "id": "profile-softgpu-generic-v0",
+      "category": "profile",
+      "state": "verified-unit",
+      "phase": 0
+    },
+    {
+      "id": "profile-amd-r9700-gfx1201-v0",
+      "category": "profile",
+      "state": "verified-unit",
+      "phase": 0,
+      "notes": "llvm_target identity verified; resource limits unknown; conformance_allowed false"
+    }
+  ]
+}

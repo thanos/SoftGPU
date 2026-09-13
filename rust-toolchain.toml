@@ -1,0 +1,7 @@
+# SoftGPU pinned host toolchain (Phase 0).
+# MSRV is documented in Cargo.toml (`rust-version`) and README.
+# Nightly-only features are prohibited in the host runtime.
+[toolchain]
+channel = "1.85.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

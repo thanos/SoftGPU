@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "profile_id": "amd-radeon-ai-pro-r9700-gfx1201",
+  "profile_revision": "0",
+  "identity": {
+    "vendor": "AMD",
+    "product_name": "Radeon AI PRO R9700",
+    "architecture_family": "RDNA 4",
+    "llvm_target": {
+      "value": "gfx1201",
+      "provenance": "verified",
+      "source_ref": "docs/sources.md#rocm-compatibility-r9700-gfx1201",
+      "notes": "ROCm compatibility/system-requirements list Radeon AI PRO R9700 as LLVM target gfx1201; SoftGPU does not yet advertise numeric device limits from that listing"
+    }
+  },
+  "max_fidelity": "abi",
+  "conformance_allowed": false,
+  "resource_limits": {
+    "max_workgroup_size_x": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "numeric limits intentionally omitted until measured against pinned ROCm/headers or hardware"
+    },
+    "max_workgroup_size_y": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "numeric limits intentionally omitted until measured against pinned ROCm/headers or hardware"
+    },
+    "max_workgroup_size_z": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "numeric limits intentionally omitted until measured against pinned ROCm/headers or hardware"
+    },
+    "wavefront_size": {
+      "value": null,
+      "provenance": "unknown",
+      "notes": "LLVM AMDGPUUsage documents gfx1201 wavefrontsize64 as a target feature family; SoftGPU still records this field as unknown until a Phase 2+ probe cites the exact contract SoftGPU will advertise"
+    }
+  },
+  "analytical_performance": {
+    "notes": [
+      "No performance parameters in Phase 0",
+      "Do not infer clocks, bandwidth, or CU counts from marketing materials"
+    ]
+  },
+  "quirks": [
+    "Profile identity only; no SoftGPU runtime agent is advertised yet",
+    "conformance_allowed remains false until Phase 12 hardware evidence"
+  ]
+}

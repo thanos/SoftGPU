@@ -1,0 +1,22 @@
+{
+  "schema_version": 99,
+  "profile_id": "broken",
+  "profile_revision": "0",
+  "identity": {
+    "vendor": "X",
+    "product_name": "Y",
+    "architecture_family": "Z",
+    "llvm_target": {
+      "value": null,
+      "provenance": "unknown"
+    }
+  },
+  "max_fidelity": "abi",
+  "conformance_allowed": false,
+  "resource_limits": {
+    "max_workgroup_size_x": { "value": null, "provenance": "unknown" },
+    "max_workgroup_size_y": { "value": null, "provenance": "unknown" },
+    "max_workgroup_size_z": { "value": null, "provenance": "unknown" },
+    "wavefront_size": { "value": null, "provenance": "unknown" }
+  }
+}

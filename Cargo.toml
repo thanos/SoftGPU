@@ -1,0 +1,26 @@
+[package]
+name = "softgpu"
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.85"
+description = "Developer-oriented GPU emulation, testing, debugging, and sanitization runtime (Phase 0 skeleton)"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+repository = "https://github.com/softgpu/softgpu"
+keywords = ["gpu", "emulation", "hsa", "hip", "rocm"]
+categories = ["development-tools", "emulators"]
+exclude = ["baoulo/**"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+
+[[bin]]
+name = "softgpu"
+path = "src/main.rs"
+
+[profile.release]
+lto = false
+codegen-units = 16
