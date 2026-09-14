@@ -87,9 +87,9 @@ int main(void) {
   /* HIP touch — may fail or report 0 devices under FEATURE=0. */
   hipError_t herr = hipInit(0);
   int hip_devices = -1;
-  hipGetDeviceCount(&hip_devices);
-  fprintf(stderr, "softgpu-hip-discovery: hipInit=%d hipGetDeviceCount=%d\n",
-          (int)herr, hip_devices);
+  hipError_t hcnt = hipGetDeviceCount(&hip_devices);
+  fprintf(stderr, "softgpu-hip-discovery: hipInit=%d hipGetDeviceCount=%d (err=%d)\n",
+          (int)herr, hip_devices, (int)hcnt);
 
   if (hsa_init() != HSA_STATUS_SUCCESS) {
     fprintf(stderr, "FAIL: hsa_init\n");

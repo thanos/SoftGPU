@@ -116,8 +116,11 @@ export SOFTGPU_PROFILE="$ROOT/profiles/amd-radeon-ai-pro-r9700-gfx1201-v0.json"
 "$CARGO_TARGET_DIR/softgpu-hip-load-probe"
 
 echo "== Phase 2: HIP-linked HSA agent discovery =="
+# Discovery probe calls HSA APIs directly; link SoftGPU's staged libhsa-runtime64
+# (same SONAME HIP uses). Runtime LD_LIBRARY_PATH already prefers SoftGPU.
 "$HIPCC" -O2 -o "$CARGO_TARGET_DIR/softgpu-hip-discovery-probe" \
-  tools/softgpu-hip-discovery-probe/main.cpp
+  tools/softgpu-hip-discovery-probe/main.cpp \
+  -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -lhsa-runtime64
 "$CARGO_TARGET_DIR/softgpu-hip-discovery-probe"
 
 echo "== PASS: Phase 1 load proof + Phase 2 agent discovery =="
