@@ -61,7 +61,7 @@ fn init_iterate_gpu_agent_and_shutdown() {
             assert_eq!(st, HSA_STATUS_SUCCESS);
             assert_eq!(
                 feature, HSA_AGENT_FEATURE_KERNEL_DISPATCH,
-                "Phase 3 advertises KERNEL_DISPATCH for queue ABI only"
+                "SoftGPU advertises KERNEL_DISPATCH for queue+AQL intercept only"
             );
             HSA_STATUS_SUCCESS
         }

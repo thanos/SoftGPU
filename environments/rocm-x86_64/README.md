@@ -23,11 +23,12 @@ The script:
 1. Builds SoftGPU `libhsa_runtime64` and stages it as `libhsa-runtime64.so`
 2. Compiles HIP-linked **load** and **discovery** probes with `hipcc`
 3. Runs load proof with SoftGPU ahead of `/opt/rocm` (and a negative control)
-4. Runs discovery: HSA iterate from the HIP-linked process must see the SoftGPU GPU with `FEATURE=KERNEL_DISPATCH` (queue ABI only)
-5. Runs Phase 3 probe: Path C memory allocate + queue create/observe (no packet execution)
-6. Sets `SOFTGPU_PROFILE` to the R9700 identity profile for discovery
+4. Runs discovery: HSA iterate from the HIP-linked process must see the SoftGPU GPU with `FEATURE=KERNEL_DISPATCH` (queue + AQL intercept)
+5. Runs Phase 3 probe: Path C memory allocate + queue create/observe
+6. Runs Phase 4 probe: SoftGPU-controlled golden AQL packet → diagnostic complete (not kernel success)
+7. Sets `SOFTGPU_PROFILE` to the R9700 identity profile for discovery
 
-No kernels are launched / executed.
+No kernels are executed.
 
 ## Local CI (match GitHub Actions)
 

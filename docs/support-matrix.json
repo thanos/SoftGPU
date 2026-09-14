@@ -14,21 +14,21 @@
       "id": "host-macos-aarch64-rust-1.85",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 3
+      "phase": 4
     },
     {
       "id": "host-linux-x86_64-rust-1.85-no-rocm",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 3
+      "phase": 4
     },
     {
       "id": "host-linux-x86_64-rocm-hip-integration",
       "category": "host-toolchain",
       "state": "verified-integration",
-      "phase": 3,
+      "phase": 4,
       "ci_policy": "required-job-rocm-integration",
-      "notes": "Pinned ROCm 7.14.0 digest"
+      "notes": "Pinned ROCm 7.14.0 digest; Phase 4 AQL probe"
     },
     {
       "id": "abi-hsa-init-shutdown-agents",
@@ -54,7 +54,7 @@
       "category": "abi",
       "state": "verified-integration",
       "phase": 3,
-      "notes": "FEATURE=KERNEL_DISPATCH for queue ABI only; no packet execution"
+      "notes": "FEATURE=KERNEL_DISPATCH for queue + AQL intercept; not kernel execution"
     },
     {
       "id": "abi-advertised-agent-field-provenance",
@@ -74,7 +74,7 @@
       "category": "abi",
       "state": "verified-unit",
       "phase": 3,
-      "notes": "observe-once packet validation; no AQL execution; cancel-on-destroy waits"
+      "notes": "observe-once packet validation; cancel-on-destroy waits"
     },
     {
       "id": "abi-phase3-charter-concurrency",
@@ -84,10 +84,17 @@
       "notes": "wraparound, stress, caps, docs/concurrency-phase3.md, Article 4"
     },
     {
-      "id": "abi-aql-packet-execution",
+      "id": "abi-aql-diagnostic-intercept",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 4,
+      "notes": "validate/trace/diagnostic complete|reject; capture/replay; not kernel success"
+    },
+    {
+      "id": "abi-kernel-execution",
       "category": "abi",
       "state": "unsupported",
-      "phase": 4
+      "phase": 6
     },
     {
       "id": "profile-softgpu-generic-v0",

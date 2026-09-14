@@ -26,9 +26,10 @@ SoftGPU observes packets in [observed_through, write_index)
   - do NOT pretend HSA read_index advanced as completion
 ```
 
-SoftGPU advertises `FEATURE=KERNEL_DISPATCH` so queue create is meaningful, but
-**execution is Phase 4**. Observation is an honesty boundary: SoftGPU saw the
-packet; SoftGPU did not run it.
+SoftGPU advertises `FEATURE=KERNEL_DISPATCH` so queue create is meaningful.
+Phase 4 adds AQL validation and an experimental **diagnostic** completion —
+still **not** kernel execution. Observation remains an honesty boundary:
+SoftGPU saw and classified the packet; SoftGPU did not run it as a GPU kernel.
 
 ### Wraparound
 
@@ -63,7 +64,7 @@ Packet processors that run kernels before proving:
 - wraparound and resource caps,
 
 will mis-attribute races as “ISA bugs.” SoftGPU’s charter therefore places
-queue/signal stress in Phase 3 and execution in Phase 4.
+queue/signal stress in Phase 3 and AQL interception (not kernel exec) in Phase 4.
 
 ## Reproducible example
 

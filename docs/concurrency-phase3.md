@@ -52,6 +52,7 @@ run under that lock.
 ## Explicit non-claims
 
 - Safe Rust is not proof of AQL producer/consumer memory ordering on real HIP.
-- SoftGPU observe-only mode is not kernel success.
-- Packet ring validation in Phase 3 is header-type / ownership observation, not
-  full AQL field validation (Phase 4).
+- SoftGPU observe-only / diagnostic-complete modes are not kernel success.
+- Packet ring validation progressed in Phase 4 to full kernel-dispatch field
+  checks plus the documented diagnostic contract
+  (`docs/aql-diagnostic-contract.md`).

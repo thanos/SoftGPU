@@ -1,12 +1,11 @@
 //! Phase 3 charter completion tests: wraparound, ordering, exhaustion,
 //! timeouts, stale handles, destroy-during-wait, concurrent stress, caps.
 
+use softgpu_core::aql::golden_kernel_dispatch_1d;
 use softgpu_core::handle::{HandleKind, PackedHandle};
 use softgpu_core::memory::{SoftGpuAllocator, SOFTGPU_ALLOC_ALIGNMENT, SOFTGPU_ALLOC_GRANULE};
 use softgpu_core::profile::{ProfileField, ProfileIdentity, ResourceLimits};
-use softgpu_core::queue::{
-    PACKET_TYPE_KERNEL_DISPATCH, QUEUE_TYPE_MULTI, SOFTGPU_QUEUES_MAX, SOFTGPU_QUEUE_MIN_SIZE,
-};
+use softgpu_core::queue::{QUEUE_TYPE_MULTI, SOFTGPU_QUEUES_MAX, SOFTGPU_QUEUE_MIN_SIZE};
 use softgpu_core::runtime::{Runtime, RuntimeError};
 use softgpu_core::signal::SignalWaitOutcome;
 use softgpu_core::{DeviceProfile, FidelityLevel};
@@ -151,13 +150,11 @@ fn packet_observed_exactly_once_with_ordering() {
         .queue_create(agent, SOFTGPU_QUEUE_MIN_SIZE, QUEUE_TYPE_MULTI)
         .unwrap();
     let doorbell = PackedHandle::from_raw(unsafe { (*q).doorbell_signal });
+    let pkt = golden_kernel_dispatch_1d(64, 256, 0x1000, 0, 0);
     unsafe {
         let base = (*q).base_address;
-        *base = (PACKET_TYPE_KERNEL_DISPATCH & 0xff) as u8;
-        *base.add(1) = 0;
-        let p1 = base.add(64);
-        *p1 = (PACKET_TYPE_KERNEL_DISPATCH & 0xff) as u8;
-        *p1.add(1) = 0;
+        std::ptr::copy_nonoverlapping(pkt.as_ptr(), base, 64);
+        std::ptr::copy_nonoverlapping(pkt.as_ptr(), base.add(64), 64);
     }
     rt.queue_store_write_index(q, 2).unwrap();
     rt.signal_store(doorbell, 1).unwrap();
@@ -194,20 +191,19 @@ fn wraparound_packet_indexes() {
         .unwrap();
     let doorbell = PackedHandle::from_raw(unsafe { (*q).doorbell_signal });
     let n = u64::from(SOFTGPU_QUEUE_MIN_SIZE);
+    let pkt = golden_kernel_dispatch_1d(64, 256, 0x1000, 0, 0);
     unsafe {
         let base = (*q).base_address;
         for i in 0..n {
             let p = base.add((i as usize) * 64);
-            *p = (PACKET_TYPE_KERNEL_DISPATCH & 0xff) as u8;
-            *p.add(1) = 0;
+            std::ptr::copy_nonoverlapping(pkt.as_ptr(), p, 64);
         }
     }
     rt.queue_store_write_index(q, n).unwrap();
     rt.signal_store(doorbell, 1).unwrap();
     unsafe {
         let base = (*q).base_address;
-        *base = (PACKET_TYPE_KERNEL_DISPATCH & 0xff) as u8;
-        *base.add(1) = 0;
+        std::ptr::copy_nonoverlapping(pkt.as_ptr(), base, 64);
     }
     rt.queue_store_write_index(q, n + 1).unwrap();
     rt.signal_store(doorbell, 2).unwrap();
@@ -264,14 +260,14 @@ fn concurrent_producer_consumer_stress() {
         scope.spawn(|| {
             barrier.wait();
             let q = q_addr as *mut softgpu_core::HsaQueueAbi;
+            let pkt = golden_kernel_dispatch_1d(64, 256, 0x1000, 0, 0);
             for i in 0..32u64 {
                 let mut guard = shared.lock().unwrap();
                 unsafe {
                     let base = (*q).base_address;
                     let slot = (i as usize) % SOFTGPU_QUEUE_MIN_SIZE as usize;
                     let p = base.add(slot * 64);
-                    *p = (PACKET_TYPE_KERNEL_DISPATCH & 0xff) as u8;
-                    *p.add(1) = 0;
+                    std::ptr::copy_nonoverlapping(pkt.as_ptr(), p, 64);
                 }
                 guard.queue_store_write_index(q, i + 1).unwrap();
                 guard.signal_store(doorbell, (i + 1) as i64).unwrap();

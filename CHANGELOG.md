@@ -9,15 +9,18 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
-- Phase 3: Path C memory (legacy regions + AMD pools on one SoftGPU host allocator), signals, queue create/destroy/indexes with doorbell observation.
-- Agent `FEATURE=KERNEL_DISPATCH` for queue ABI only; AQL packet execution remains unsupported.
-- SoftGPU-native Phase 3 tests and ROCm `softgpu-phase3-queue-probe`.
-- Phase 3 charter completion: allocation lifetime metadata, packet observe-once validation, wait cancel on destroy/shutdown, concurrency stress tests, [`docs/concurrency-phase3.md`](docs/concurrency-phase3.md), Article 4.
+- Phase 4: AQL packet header/type parser, kernel-dispatch validation, minimal barriers, normalized `DispatchDescriptor`, capture/replay, and documented diagnostic complete/reject contract ([`docs/aql-diagnostic-contract.md`](docs/aql-diagnostic-contract.md)).
+- SoftGPU-native Phase 4 tests and ROCm `softgpu-phase4-aql-probe` (SoftGPU-controlled golden packet).
+- Article 5: HSA/AQL dispatch end to end.
 
 ### Changed
 
-- Discovery probe expects `KERNEL_DISPATCH`; docs/status/support-matrix honesty updated for queue-ABI-only claim.
-- Signal waits clone `Arc` and spin outside the process mutex so destroy can cancel waiters.
+- Doorbell observe path validates packets, may advance HSA `read_index` / invalidate slots, and may store completion `0` under `diagnostic_complete_no_execution` — never claimed as kernel success.
+- `ACTIVE_PHASE` → `phase-4`; status/support-matrix/README honesty updated.
+
+### Notes (Phase 3 retained)
+
+- Phase 3: Path C memory, signals, queue create/observe, charter stress, Article 4.
 
 ## [0.1.0] — 2026-09-14
 

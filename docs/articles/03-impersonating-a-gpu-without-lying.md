@@ -34,7 +34,7 @@ hsa_iterate_agents / hsa_agent_get_info
 | `NAME` | profile `product_name` | profile identity |
 | `VENDOR_NAME` | profile `vendor` | profile identity |
 | `DEVICE` | GPU | SoftGPU virtual agent policy |
-| `FEATURE` | `KERNEL_DISPATCH` | SoftGPU Phase 3 **queue ABI only** — not execution |
+| `FEATURE` | `KERNEL_DISPATCH` | SoftGPU Phase 4 **queue + AQL intercept** — not kernel execution |
 | `QUEUE_*` | SoftGPU software defaults | SoftGPU software limits |
 | `VERSION_MAJOR/MINOR` | `1` / `2` | HSA Runtime 1.2 family target |
 

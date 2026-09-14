@@ -1,8 +1,9 @@
 //! SoftGPU ROCr/HSA adapter (`libhsa-runtime64`).
 //!
-//! Phase 3 surface: init/shutdown/system info, agent discovery (`FEATURE` =
-//! `KERNEL_DISPATCH` for queue ABI only), Path C memory (regions + AMD pools),
-//! signals, and queue create/observe. Packet execution remains unsupported.
+//! Phase 4 surface: init/shutdown/system info, agent discovery (`FEATURE` =
+//! `KERNEL_DISPATCH` for queue + AQL interception), Path C memory, signals,
+//! queues, and diagnostic AQL complete/reject. Kernel execution remains
+//! unsupported.
 //!
 //! # Panic / unwind policy
 //!

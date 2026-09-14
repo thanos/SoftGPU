@@ -22,7 +22,7 @@ impl AgentKind {
     }
 }
 
-/// `HSA_AGENT_FEATURE_KERNEL_DISPATCH` — SoftGPU Phase 3 queue-ABI claim only.
+/// `HSA_AGENT_FEATURE_KERNEL_DISPATCH` — SoftGPU queue + AQL intercept claim only.
 pub const AGENT_FEATURE_KERNEL_DISPATCH: u32 = 1;
 
 /// Attributes SoftGPU may answer for an agent.
@@ -64,7 +64,7 @@ pub struct VirtualAgent {
     pub kind: AgentKind,
     pub name: String,
     pub vendor_name: String,
-    /// Bitmask of agent features. Phase 3: `KERNEL_DISPATCH` for queue ABI only.
+    /// Bitmask of agent features. SoftGPU: `KERNEL_DISPATCH` for queue + AQL intercept only.
     pub feature_mask: u32,
     pub profile_id: String,
     pub profile_revision: String,

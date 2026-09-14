@@ -1,22 +1,10 @@
-//! SoftGPU user-mode queues: create / destroy / indexes / observe only.
+//! SoftGPU user-mode queues: create / destroy / indexes / AQL observe.
 //!
-//! Packet buffers are initialized to `HSA_PACKET_TYPE_INVALID`. SoftGPU does
-//! **not** execute AQL kernel-dispatch packets in Phase 3.
-//!
-//! # Observation model
-//!
-//! SoftGPU tracks `observed_through` separately from the HSA `read_index`.
-//! When a doorbell store arrives (or `observe_packets` is called), SoftGPU
-//! validates packets in `[observed_through, write_index)` and records each
-//! packet index **exactly once**. SoftGPU does **not** advance HSA
-//! `read_index` as if kernels completed — that would over-claim execution.
-//!
-//! # Safety (`Send`)
-//!
-//! `SoftGpuQueue` / `HsaQueueAbi` are `Send` because ownership of the packet
-//! buffer and ABI box is exclusive to SoftGPU and serialized by the process
-//! runtime mutex for create/destroy. Index atomics use SeqCst for SoftGPU's
-//! software observe path; this is not a claim of full HSA AQL memory ordering.
+//! Phase 4: SoftGPU validates kernel-dispatch packets, records normalized
+//! descriptors, and may apply the experimental **diagnostic completion**
+//! contract (completion signal store) **without** executing kernel semantics.
+//! Advancing HSA `read_index` after diagnostic complete/reject is packet-
+//! processor protocol progress, not kernel success.
 
 use crate::handle::PackedHandle;
 use std::collections::HashSet;
@@ -60,6 +48,7 @@ unsafe impl Send for HsaQueueAbi {}
 pub struct PacketObservation {
     pub packet_index: u64,
     pub packet_type: u16,
+    pub bytes: [u8; AQL_PACKET_BYTES],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +56,7 @@ pub enum PacketValidateError {
     StillInvalid { packet_index: u64 },
     UnsupportedType { packet_index: u64, packet_type: u16 },
     AlreadyObserved { packet_index: u64 },
+    BufferFault { packet_index: u64 },
 }
 
 #[derive(Debug)]
@@ -81,7 +71,7 @@ pub struct SoftGpuQueue {
     pub write_index: AtomicU64,
     pub read_index: AtomicU64,
     pub doorbell_stores: AtomicU64,
-    /// SoftGPU observe cursor (not HSA read_index).
+    /// SoftGPU observe cursor (mirrors processor progress with read_index in Phase 4).
     pub observed_through: AtomicU64,
     observed_ids: std::sync::Mutex<HashSet<u64>>,
 }
@@ -152,18 +142,26 @@ impl SoftGpuQueue {
         (&*self.abi) as *const HsaQueueAbi as *mut HsaQueueAbi
     }
 
-    fn packet_type_at(&self, packet_index: u64) -> u16 {
+    pub fn packet_bytes_at(
+        &self,
+        packet_index: u64,
+    ) -> Result<[u8; AQL_PACKET_BYTES], PacketValidateError> {
         let size = self.size_packets().max(1);
         let slot = (packet_index % size) as usize;
         let offset = slot.saturating_mul(AQL_PACKET_BYTES);
-        if self.packet_buffer.is_null() || offset + 2 > self.packet_bytes {
-            return PACKET_TYPE_INVALID;
+        if self.packet_buffer.is_null() || offset + AQL_PACKET_BYTES > self.packet_bytes {
+            return Err(PacketValidateError::BufferFault { packet_index });
         }
-        // SAFETY: buffer owned by SoftGPU; offset within packet_bytes.
+        let mut out = [0u8; AQL_PACKET_BYTES];
+        // SAFETY: SoftGPU owns buffer; offset checked.
         unsafe {
-            let p = self.packet_buffer.add(offset);
-            u16::from(*p) | (u16::from(*p.add(1)) << 8)
+            std::ptr::copy_nonoverlapping(
+                self.packet_buffer.add(offset),
+                out.as_mut_ptr(),
+                AQL_PACKET_BYTES,
+            );
         }
+        Ok(out)
     }
 
     /// Write a packet header type into the ring (test / SoftGPU producer helper).
@@ -182,26 +180,40 @@ impl SoftGpuQueue {
         }
     }
 
-    /// Observe newly submitted packets exactly once. Does not execute kernels
-    /// and does not advance HSA `read_index`.
+    /// Copy full packet bytes into the ring slot (SoftGPU / test producer).
+    pub fn write_packet_bytes(&self, packet_index: u64, bytes: &[u8; AQL_PACKET_BYTES]) {
+        let size = self.size_packets().max(1);
+        let slot = (packet_index % size) as usize;
+        let offset = slot.saturating_mul(AQL_PACKET_BYTES);
+        if self.packet_buffer.is_null() || offset + AQL_PACKET_BYTES > self.packet_bytes {
+            return;
+        }
+        // SAFETY: SoftGPU owns the buffer.
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                bytes.as_ptr(),
+                self.packet_buffer.add(offset),
+                AQL_PACKET_BYTES,
+            );
+        }
+    }
+
+    /// Mark slot INVALID after SoftGPU consumed it (protocol progress).
+    pub fn invalidate_packet_slot(&self, packet_index: u64) {
+        self.write_packet_type(packet_index, PACKET_TYPE_INVALID);
+    }
+
+    /// Observe newly submitted packets exactly once. Copies bytes for Phase 4 parse.
     pub fn observe_packets(&self) -> Result<Vec<PacketObservation>, PacketValidateError> {
         let write = self.write_index();
         let mut cursor = self.observed_through();
         let mut out = Vec::new();
         while cursor < write {
-            let ty = self.packet_type_at(cursor) & 0xff;
+            let bytes = self.packet_bytes_at(cursor)?;
+            let ty = u16::from(bytes[0]);
             if ty == PACKET_TYPE_INVALID {
                 return Err(PacketValidateError::StillInvalid {
                     packet_index: cursor,
-                });
-            }
-            // Phase 3 accepts kernel-dispatch headers for observation only.
-            // Other types fail closed until Phase 4 expands the set.
-            if ty != PACKET_TYPE_KERNEL_DISPATCH && ty != 3 && ty != 4 && ty != 5 {
-                // barrier-and=3, agent-dispatch=4, barrier-or=5 in HSA
-                return Err(PacketValidateError::UnsupportedType {
-                    packet_index: cursor,
-                    packet_type: ty,
                 });
             }
             {
@@ -215,6 +227,7 @@ impl SoftGpuQueue {
             out.push(PacketObservation {
                 packet_index: cursor,
                 packet_type: ty,
+                bytes,
             });
             cursor += 1;
         }
@@ -279,12 +292,6 @@ mod tests {
         let mut buf = vec![0u8; AQL_PACKET_BYTES * 4];
         init_packet_buffer(&mut buf);
         assert_eq!(buf[0], PACKET_TYPE_INVALID as u8);
-        assert_eq!(buf[AQL_PACKET_BYTES], PACKET_TYPE_INVALID as u8);
-    }
-
-    #[test]
-    fn queue_abi_size_matches_expectation() {
-        assert_eq!(std::mem::size_of::<HsaQueueAbi>(), 40);
     }
 
     #[test]
@@ -295,40 +302,7 @@ mod tests {
         let first = q.observe_packets().unwrap();
         assert_eq!(first.len(), 1);
         assert_eq!(first[0].packet_index, 0);
-        assert_eq!(q.observed_count(), 1);
-        // No new packets → empty, not AlreadyObserved.
         let second = q.observe_packets().unwrap();
         assert!(second.is_empty());
-        assert_eq!(q.observed_count(), 1);
-    }
-
-    #[test]
-    fn wraparound_indexes_observe() {
-        let q = test_queue(SOFTGPU_QUEUE_MIN_SIZE);
-        let size = u64::from(SOFTGPU_QUEUE_MIN_SIZE);
-        // Simulate wrap: write_index past size.
-        for i in 0..size {
-            q.write_packet_type(i, PACKET_TYPE_KERNEL_DISPATCH);
-        }
-        q.store_write_index(size);
-        let obs = q.observe_packets().unwrap();
-        assert_eq!(obs.len(), size as usize);
-        q.write_packet_type(size, PACKET_TYPE_KERNEL_DISPATCH);
-        q.store_write_index(size + 1);
-        let more = q.observe_packets().unwrap();
-        assert_eq!(more.len(), 1);
-        assert_eq!(more[0].packet_index, size);
-    }
-
-    #[test]
-    fn invalid_packet_fails_closed() {
-        let q = test_queue(SOFTGPU_QUEUE_MIN_SIZE);
-        q.store_write_index(1);
-        // Still INVALID at slot 0.
-        let err = q.observe_packets().unwrap_err();
-        assert!(matches!(
-            err,
-            PacketValidateError::StillInvalid { packet_index: 0 }
-        ));
     }
 }

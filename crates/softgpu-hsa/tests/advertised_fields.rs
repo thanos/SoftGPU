@@ -84,7 +84,7 @@ fn advertised_agent_fields_match_profile_provenance() {
         );
         assert_eq!(
             feature, HSA_AGENT_FEATURE_KERNEL_DISPATCH,
-            "Phase 3 advertises KERNEL_DISPATCH for queue ABI only"
+            "SoftGPU advertises KERNEL_DISPATCH for queue+AQL intercept only"
         );
 
         let mut device = 99u32;

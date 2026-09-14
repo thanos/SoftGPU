@@ -123,7 +123,7 @@ fn check_config(args: &[String]) -> Result<()> {
                 DeviceProfile::load_path(&path)?;
             }
             "enable_queues" => {
-                // Phase 3: queue create/observe is implemented (no packet execution).
+                // Phase 4: queues + AQL interception (no kernel execution).
                 if !(value == "true" || value == "1" || value == "false" || value == "0") {
                     return Err(Error::new(
                         ErrorCategory::Validation,
@@ -136,9 +136,11 @@ fn check_config(args: &[String]) -> Result<()> {
                 if value == "true" || value == "1" {
                     return Err(Error::new(
                         ErrorCategory::Unsupported,
-                        "AQL packet execution is not implemented in phase 3",
+                        "kernel execution is not implemented in phase 4",
                     )
-                    .with_remediation("see docs/status.md; execution begins in phase 4"));
+                    .with_remediation(
+                        "see docs/status.md; Phase 4 is AQL interception only (diagnostic complete ≠ kernel success)",
+                    ));
                 }
             }
             other => {
@@ -167,7 +169,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 3 (memory, signals, queue observe)
+softgpu {VERSION} — Phase 4 (AQL intercept, diagnostic complete)
 
 USAGE:
   softgpu <command> [args]
@@ -180,8 +182,9 @@ COMMANDS:
   check-config KEY=VALUE...    Validate a minimal config surface (negative-test aid)
 
 NOTES:
-  SoftGPU exports libhsa_runtime64 with Path C memory, signals, and queue ABI.
-  FEATURE=KERNEL_DISPATCH means queue create/observe only — not kernel execution.
+  SoftGPU exports libhsa_runtime64 with Path C memory, signals, queues, and AQL
+  packet validation. FEATURE=KERNEL_DISPATCH means queue + interception only —
+  diagnostic completion is never kernel success.
   Rename/symlink to libhsa-runtime64 for ROCr substitution on Linux.
   See README.md and docs/status.md.
 "
@@ -193,9 +196,10 @@ fn print_info() {
     println!("version={VERSION}");
     println!("active_phase={ACTIVE_PHASE}");
     println!("fidelity_policy=named-levels-required");
-    println!("rocr_hsa_library=softgpu-hsa (memory/signals/queues + fail-closed stubs)");
+    println!("rocr_hsa_library=softgpu-hsa (memory/signals/queues/AQL + fail-closed stubs)");
     println!("agent_discovery=one-virtual-gpu");
-    println!("feature=KERNEL_DISPATCH (queue ABI observe only; no packet execution)");
+    println!("feature=KERNEL_DISPATCH (queue+AQL intercept; no kernel execution)");
+    println!("aql=diagnostic_complete_no_execution");
     println!("memory=path-c-regions-and-amd-pools");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");

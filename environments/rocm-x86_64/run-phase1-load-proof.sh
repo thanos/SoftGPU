@@ -129,4 +129,10 @@ cc -O2 -I"$ROCM_PATH/include" -o "$CARGO_TARGET_DIR/softgpu-phase3-queue-probe" 
   -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -lhsa-runtime64
 "$CARGO_TARGET_DIR/softgpu-phase3-queue-probe"
 
-echo "== PASS: Phase 1 load proof + Phase 2/3 discovery + Phase 3 queue observe =="
+echo "== Phase 4: AQL diagnostic interception (SoftGPU-controlled subset) =="
+cc -O2 -I"$ROCM_PATH/include" -o "$CARGO_TARGET_DIR/softgpu-phase4-aql-probe" \
+  tools/softgpu-phase4-aql-probe/main.c \
+  -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -lhsa-runtime64
+"$CARGO_TARGET_DIR/softgpu-phase4-aql-probe"
+
+echo "== PASS: Phase 1–4 SoftGPU substitution probes =="

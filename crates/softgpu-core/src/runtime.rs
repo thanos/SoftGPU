@@ -4,6 +4,10 @@
 //! generation-bumping so destroy/recycle cannot revive stale IDs.
 
 use crate::agent::{AgentInfoAttr, AgentKind, VirtualAgent};
+use crate::aql::{
+    parse_supported_packet, DispatchDescriptor, KernargClass, DIAGNOSTIC_COMPLETE_NO_EXECUTION,
+    DIAGNOSTIC_REJECTED,
+};
 use crate::error::{Error, ErrorCategory};
 use crate::fidelity::FidelityLevel;
 use crate::handle::{HandleKind, PackedHandle};
@@ -16,8 +20,8 @@ use crate::memory::{
 };
 use crate::profile::DeviceProfile;
 use crate::queue::{
-    init_packet_buffer, is_power_of_two, HsaQueueAbi, SoftGpuQueue, AQL_PACKET_BYTES,
-    QUEUE_FEATURE_KERNEL_DISPATCH, QUEUE_TYPE_MULTI, SOFTGPU_QUEUES_MAX,
+    init_packet_buffer, is_power_of_two, HsaQueueAbi, PacketObservation, SoftGpuQueue,
+    AQL_PACKET_BYTES, QUEUE_FEATURE_KERNEL_DISPATCH, QUEUE_TYPE_MULTI, SOFTGPU_QUEUES_MAX,
 };
 use crate::signal::{SignalCondition, SignalWaitOutcome, SoftGpuSignal};
 use crate::trace::{SharedTrace, TraceEvent, TraceLog, TraceSink};
@@ -99,6 +103,8 @@ pub struct Runtime {
     allocator: SoftGpuAllocator,
     next_generation: u32,
     next_queue_id: u64,
+    /// Captured validated dispatches for offline replay (owned bytes).
+    dispatch_captures: Vec<DispatchDescriptor>,
     trace: SharedTrace,
 }
 
@@ -116,8 +122,14 @@ impl Runtime {
             allocator: SoftGpuAllocator::new(SOFTGPU_POOL_BYTES),
             next_generation: 1,
             next_queue_id: 1,
+            dispatch_captures: Vec::new(),
             trace: SharedTrace::new(512),
         })
+    }
+
+    /// Owned packet captures suitable for offline `aql::replay_dispatch`.
+    pub fn dispatch_captures(&self) -> &[DispatchDescriptor] {
+        &self.dispatch_captures
     }
 
     pub fn profile(&self) -> &DeviceProfile {
@@ -282,6 +294,7 @@ impl Runtime {
             let _ = self.alloc_generation();
         }
         self.agents.clear();
+        self.dispatch_captures.clear();
     }
 
     fn destroy_queue_resources(&mut self, queue: SoftGpuQueue) {
@@ -759,6 +772,8 @@ impl Runtime {
         sig.store(value);
         if is_doorbell {
             if let Some(qid) = queue_id {
+                let mut pending: Vec<PacketObservation> = Vec::new();
+                let mut observe_err: Option<String> = None;
                 for slot in &self.queues {
                     if let Some(q) = slot.queue.as_ref() {
                         if q.id == qid {
@@ -772,37 +787,158 @@ impl Runtime {
                                 });
                             });
                             match q.observe_packets() {
-                                Ok(obs) => {
-                                    for p in obs {
-                                        let seq = self.trace.with_log(TraceLog::next_seq);
-                                        self.trace.with_log(|log| {
-                                            log.record(TraceEvent::PacketObserved {
-                                                seq,
-                                                queue_id: qid,
-                                                packet_index: p.packet_index,
-                                                packet_type: p.packet_type,
-                                            });
-                                        });
-                                    }
-                                }
-                                Err(err) => {
-                                    let seq = self.trace.with_log(TraceLog::next_seq);
-                                    self.trace.with_log(|log| {
-                                        log.record(TraceEvent::PacketValidateFailed {
-                                            seq,
-                                            queue_id: qid,
-                                            detail: format!("{err:?}"),
-                                        });
-                                    });
-                                }
+                                Ok(obs) => pending = obs,
+                                Err(err) => observe_err = Some(format!("{err:?}")),
                             }
                             break;
                         }
                     }
                 }
+                if let Some(detail) = observe_err {
+                    let seq = self.trace.with_log(TraceLog::next_seq);
+                    self.trace.with_log(|log| {
+                        log.record(TraceEvent::PacketValidateFailed {
+                            seq,
+                            queue_id: qid,
+                            detail,
+                        });
+                    });
+                }
+                for p in pending {
+                    self.process_observed_packet(qid, &p);
+                }
             }
         }
         Ok(())
+    }
+
+    fn classify_kernarg(&self, addr: u64) -> KernargClass {
+        if addr == 0 {
+            return KernargClass::Null;
+        }
+        match self.allocator.lookup(addr as *const u8) {
+            Some(meta) => KernargClass::SoftGpu {
+                alloc_id: Some(meta.alloc_id),
+                addr,
+            },
+            None => KernargClass::ForeignOpaque { addr },
+        }
+    }
+
+    fn kernarg_class_label(k: &KernargClass) -> String {
+        match k {
+            KernargClass::Null => "null".into(),
+            KernargClass::SoftGpu { alloc_id, .. } => {
+                format!("softgpu:{}", alloc_id.unwrap_or(0))
+            }
+            KernargClass::ForeignOpaque { .. } => "foreign_opaque".into(),
+        }
+    }
+
+    /// Store a completion signal value without doorbell observe side effects.
+    fn signal_store_plain(&self, handle: PackedHandle, value: i64) -> Result<(), RuntimeError> {
+        let sig = self.resolve_signal(handle)?;
+        if sig.is_cancelled() || sig.is_doorbell {
+            return Err(RuntimeError::InvalidSignal);
+        }
+        sig.store(value);
+        Ok(())
+    }
+
+    fn process_observed_packet(&mut self, queue_id: u64, obs: &PacketObservation) {
+        let seq = self.trace.with_log(TraceLog::next_seq);
+        self.trace.with_log(|log| {
+            log.record(TraceEvent::PacketObserved {
+                seq,
+                queue_id,
+                packet_index: obs.packet_index,
+                packet_type: obs.packet_type,
+            });
+        });
+
+        let parsed = parse_supported_packet(&obs.bytes, obs.packet_index, |addr| {
+            self.classify_kernarg(addr)
+        });
+
+        match parsed {
+            Ok(desc) => {
+                let seq = self.trace.with_log(TraceLog::next_seq);
+                self.trace.with_log(|log| {
+                    log.record(TraceEvent::DispatchValidated {
+                        seq,
+                        queue_id,
+                        packet_index: desc.packet_index,
+                        packet_type: desc.packet_type.as_u16(),
+                        dimensions: desc.dimensions,
+                        workgroup_size: desc.workgroup_size,
+                        grid_size: desc.grid_size,
+                        private_segment_size: desc.private_segment_size,
+                        group_segment_size: desc.group_segment_size,
+                        kernel_object: desc.kernel_object,
+                        kernarg_class: Self::kernarg_class_label(&desc.kernarg),
+                        completion_signal: desc.completion_signal,
+                    });
+                });
+                self.apply_diagnostic_complete(queue_id, &desc);
+                self.dispatch_captures.push(desc);
+            }
+            Err(err) => {
+                let seq = self.trace.with_log(TraceLog::next_seq);
+                self.trace.with_log(|log| {
+                    log.record(TraceEvent::DispatchRejected {
+                        seq,
+                        queue_id,
+                        packet_index: obs.packet_index,
+                        packet_type: obs.packet_type,
+                        detail: format!("{err:?}"),
+                        contract: DIAGNOSTIC_REJECTED.into(),
+                    });
+                });
+                self.apply_diagnostic_reject(queue_id, obs.packet_index);
+            }
+        }
+    }
+
+    fn apply_diagnostic_complete(&mut self, queue_id: u64, desc: &DispatchDescriptor) {
+        // HSA completion convention: producer waits for signal == 0.
+        // SoftGPU stores 0 only as the experimental no-execution contract.
+        if desc.completion_signal != 0 {
+            let handle = PackedHandle::from_raw(desc.completion_signal);
+            let _ = self.signal_store_plain(handle, 0);
+        }
+        self.advance_packet_processor(queue_id, desc.packet_index);
+        let seq = self.trace.with_log(TraceLog::next_seq);
+        self.trace.with_log(|log| {
+            log.record(TraceEvent::DiagnosticComplete {
+                seq,
+                queue_id,
+                packet_index: desc.packet_index,
+                completion_signal: desc.completion_signal,
+                contract: DIAGNOSTIC_COMPLETE_NO_EXECUTION.into(),
+                note: "not_kernel_success".into(),
+            });
+        });
+    }
+
+    fn apply_diagnostic_reject(&mut self, queue_id: u64, packet_index: u64) {
+        // Reject does not store completion as success; still advance protocol.
+        self.advance_packet_processor(queue_id, packet_index);
+    }
+
+    fn advance_packet_processor(&mut self, queue_id: u64, packet_index: u64) {
+        for slot in &self.queues {
+            if let Some(q) = slot.queue.as_ref() {
+                if q.id == queue_id {
+                    q.invalidate_packet_slot(packet_index);
+                    let next = packet_index.saturating_add(1);
+                    // Monotonic processor progress; never move read_index backwards.
+                    if next > q.read_index() {
+                        q.store_read_index(next);
+                    }
+                    break;
+                }
+            }
+        }
     }
 
     /// Clone the signal Arc for waiting **without** holding the runtime lock.
