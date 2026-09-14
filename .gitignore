@@ -7,3 +7,4 @@
 .idea/
 .vscode/
 # Keep Cargo.lock for the application binary crate.
+/baoulo/

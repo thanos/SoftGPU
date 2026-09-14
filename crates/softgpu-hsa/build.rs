@@ -31,7 +31,10 @@ fn main() {
     build.compile("softgpu_hsa_stubs");
 
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    if target_os == "linux" {
+    let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+    // Named GNU version script only; anonymous `{ ... };` breaks rustc cdylib links
+    // ("anonymous version tag cannot be combined with other version tags").
+    if target_os == "linux" && target_env == "gnu" {
         let script = std::path::Path::new(&manifest_dir).join("hsa-runtime64.version");
         println!(
             "cargo:rustc-cdylib-link-arg=-Wl,--version-script={}",

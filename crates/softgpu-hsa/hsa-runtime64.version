@@ -1,4 +1,4 @@
-{
+SOFTGPU_HSA_1.0 {
   global:
     hsa_*;
   local:

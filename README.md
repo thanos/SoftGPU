@@ -2,7 +2,7 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **Phase 1 status:** SoftGPU ships a minimal `libhsa-runtime64` (implemented APIs + fail-closed stubs) and a HIP-linked load-proof harness for pinned ROCm **7.14.0**. Queues/AQL/kernels remain unsupported. Treat HIP integration as proven only when the `rocm-integration` CI job is green.
+> **Current tree:** Phase 0–2 engineering (runtime foundation toward **0.1**). SoftGPU ships a minimal `libhsa-runtime64`, virtual-agent discovery, and a HIP-linked integration harness for pinned ROCm **7.14.0**. Queues/AQL/kernels remain unsupported. Treat HIP integration as proven only when the `rocm-integration` CI job is green. See [docs/status.md](docs/status.md).
 
 ## What SoftGPU is (and is not)
 
@@ -30,7 +30,24 @@ Do not use “R9700 emulator,” “gfx1201 compatible,” or “conformant” w
 
 Unsupported or malformed input must produce a stable error category, human context, and (where applicable) structured diagnostics. SoftGPU **never silently fakes** unsupported behavior. Optional permissive/approximation modes (future) must warn loudly, mark non-conformance, and stay out of default CI.
 
-## Quick start (Phase 2)
+## Release roadmap
+
+Releases are organized around **what a developer can accomplish**. Engineering **phases** are gates inside those releases (see the staged implementation charter). Phase numbers express dependency, not calendar dates. No tagged release without the cross-phase gates in the charter (CI green, support matrix match, fail-closed unsupported paths, provenance, etc.).
+
+| Release |  Scope | 
+| --- | --- | 
+| **v0.1.0 — Runtime foundation** | Library substitution, init, agent discovery, profile provenance, explicit unsupported errors. **Phases 0–2.** Basic packaging: reproducible install, one documented launch path, process-scoped runtime selection. |
+| **v0.2.0 — Dispatch inspector** |  Memory pools, signals, queues, packet validation, code-object metadata, structured dispatch traces. **Phases 3–5.**  |
+| **v0.3.0 — Functional execution preview** | Explicit functional input format, basic arithmetic/loads/stores/indexing, deterministic scheduling. **Phase 6** (after the functional-input research gate). | 
+| **v0.4.0 — Correctness alpha** | Shared memory, divergence, barriers, selected atomics; memory/race/barrier checks for a declared subset. **Phases 7–8.** Event/replay scaffolding starts with the functional engine, not only at 0.5. | 
+| **v0.5.0 — Reproducible debugging beta** | Replay bundles, stepping, state inspection, controlled schedule exploration, failure minimization. **Phase 9.** | 
+| **v0.6.0 — Native gfx1201 preview**  | Narrow ISA decoder/interpreter, code-object loading, required launch state and instruction families. **Phases 10–11.** Collect hardware observations for each new semantic/instruction family when hardware is available. | 
+| **v0.9.0 — Hardware-validated RC** | Differential hardware suite, verified profile fields, FP comparison rules, discrepancy tracking. **Phase 12** consolidates earlier evidence. | 
+| **v1.0.0 — Supported developer tool** | Reliable install, stable diagnostic contracts, versioned replay/profile formats, documented compatibility and upgrade policy. **Phase 13** plus hardening. | 
+
+
+
+## Quick start (toward 0.1)
 
 Pinned toolchain: **Rust 1.85.0** (`rust-toolchain.toml`). MSRV: **1.85**. Nightly host features: **prohibited**.
 
@@ -51,7 +68,7 @@ cargo clippy --workspace --locked --all-targets -- -D warnings
 
 Cargo emits `libhsa_runtime64`. For ROCr-style substitution on Linux, the Phase 1 script stages `libhsa-runtime64.so`.
 
-## Repository map (Phase 2)
+## Repository map
 
 ```text
 crates/softgpu-core/   # handles, runtime, agents, traces, profiles
