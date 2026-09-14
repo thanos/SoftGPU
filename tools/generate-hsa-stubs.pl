@@ -14,6 +14,35 @@ my %implemented = map { $_ => 1 } qw(
   hsa_agent_get_info
   hsa_status_string
   hsa_system_get_info
+  hsa_agent_iterate_regions
+  hsa_region_get_info
+  hsa_memory_allocate
+  hsa_memory_free
+  hsa_memory_copy
+  hsa_amd_agent_iterate_memory_pools
+  hsa_amd_memory_pool_get_info
+  hsa_amd_memory_pool_allocate
+  hsa_amd_memory_pool_free
+  hsa_amd_agents_allow_access
+  hsa_amd_agent_memory_pool_get_info
+  hsa_signal_create
+  hsa_signal_destroy
+  hsa_signal_load_scacquire
+  hsa_signal_load_relaxed
+  hsa_signal_store_screlease
+  hsa_signal_store_relaxed
+  hsa_signal_wait_scacquire
+  hsa_signal_wait_relaxed
+  hsa_queue_create
+  hsa_queue_destroy
+  hsa_queue_load_read_index_scacquire
+  hsa_queue_load_read_index_relaxed
+  hsa_queue_load_write_index_scacquire
+  hsa_queue_load_write_index_relaxed
+  hsa_queue_store_write_index_relaxed
+  hsa_queue_store_write_index_screlease
+  hsa_queue_store_read_index_relaxed
+  hsa_queue_store_read_index_screlease
 );
 
 open my $fh, '<', $header or die "read $header: $!";

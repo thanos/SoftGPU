@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-09-13",
+  "updated": "2026-09-14",
   "states": [
     "implemented-unverified",
     "verified-unit",
@@ -14,21 +14,21 @@
       "id": "host-macos-aarch64-rust-1.85",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 2
+      "phase": 5
     },
     {
       "id": "host-linux-x86_64-rust-1.85-no-rocm",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 2
+      "phase": 5
     },
     {
       "id": "host-linux-x86_64-rocm-hip-integration",
       "category": "host-toolchain",
-      "state": "implemented-unverified",
-      "phase": 1,
+      "state": "verified-integration",
+      "phase": 5,
       "ci_policy": "required-job-rocm-integration",
-      "notes": "Pinned ROCm 7.14.0 digest; becomes verified-integration when CI green"
+      "notes": "Pinned ROCm 7.14.0 digest; Phase 5 code-object script"
     },
     {
       "id": "abi-hsa-init-shutdown-agents",
@@ -46,22 +46,62 @@
     {
       "id": "abi-hip-linked-load-proof",
       "category": "abi",
-      "state": "implemented-unverified",
-      "phase": 1,
-      "notes": "harness + required CI job; promote on green"
+      "state": "verified-integration",
+      "phase": 1
     },
     {
       "id": "abi-hip-linked-hsa-agent-discovery",
       "category": "abi",
-      "state": "implemented-unverified",
-      "phase": 2,
-      "notes": "controlled subset: HSA iterate from HIP-linked process; FEATURE=0"
+      "state": "verified-integration",
+      "phase": 3,
+      "notes": "FEATURE=KERNEL_DISPATCH for queue + AQL intercept; not kernel execution"
     },
     {
       "id": "abi-advertised-agent-field-provenance",
       "category": "abi",
       "state": "verified-unit",
       "phase": 2
+    },
+    {
+      "id": "abi-path-c-memory-regions-pools",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 3,
+      "notes": "SoftGPU software host allocator; not R9700 VRAM"
+    },
+    {
+      "id": "abi-signals-queue-observe",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 3,
+      "notes": "observe-once packet validation; cancel-on-destroy waits"
+    },
+    {
+      "id": "abi-phase3-charter-concurrency",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 3,
+      "notes": "wraparound, stress, caps, docs/concurrency-phase3.md, Article 4"
+    },
+    {
+      "id": "abi-aql-diagnostic-intercept",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 4,
+      "notes": "validate/trace/diagnostic complete|reject; capture/replay; not kernel success"
+    },
+    {
+      "id": "abi-amd-code-object-metadata",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 5,
+      "notes": "NT_AMDGPU_METADATA gfx1201 subset; softgpu-synthetic fixtures; no ISA execution"
+    },
+    {
+      "id": "abi-kernel-execution",
+      "category": "abi",
+      "state": "unsupported",
+      "phase": 6
     },
     {
       "id": "profile-softgpu-generic-v0",

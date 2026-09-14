@@ -59,7 +59,10 @@ fn init_iterate_gpu_agent_and_shutdown() {
                 &mut feature as *mut u32 as *mut _,
             );
             assert_eq!(st, HSA_STATUS_SUCCESS);
-            assert_eq!(feature, 0, "Phase 2 must not claim dispatch features");
+            assert_eq!(
+                feature, HSA_AGENT_FEATURE_KERNEL_DISPATCH,
+                "SoftGPU advertises KERNEL_DISPATCH for queue+AQL intercept only"
+            );
             HSA_STATUS_SUCCESS
         }
 

@@ -103,7 +103,16 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "softgpu-amd-code-object",
  "softgpu-core",
+]
+
+[[package]]
+name = "softgpu-amd-code-object"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

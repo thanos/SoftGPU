@@ -11,12 +11,20 @@ use std::fmt;
 #[repr(u8)]
 pub enum HandleKind {
     Agent = 1,
+    Region = 2,
+    MemoryPool = 3,
+    Signal = 4,
+    Queue = 5,
 }
 
 impl HandleKind {
     pub fn from_u8(value: u8) -> Option<Self> {
         match value {
             1 => Some(Self::Agent),
+            2 => Some(Self::Region),
+            3 => Some(Self::MemoryPool),
+            4 => Some(Self::Signal),
+            5 => Some(Self::Queue),
             _ => None,
         }
     }
@@ -24,6 +32,10 @@ impl HandleKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Agent => "agent",
+            Self::Region => "region",
+            Self::MemoryPool => "memory_pool",
+            Self::Signal => "signal",
+            Self::Queue => "queue",
         }
     }
 }
@@ -94,6 +106,20 @@ mod tests {
         assert_eq!(h.generation(), 7);
         assert_eq!(h.index(), 3);
         assert_eq!(PackedHandle::from_raw(h.raw()), h);
+    }
+
+    #[test]
+    fn all_kinds_round_trip() {
+        for kind in [
+            HandleKind::Agent,
+            HandleKind::Region,
+            HandleKind::MemoryPool,
+            HandleKind::Signal,
+            HandleKind::Queue,
+        ] {
+            let h = PackedHandle::pack(kind, 1, 2);
+            assert_eq!(h.kind(), Some(kind));
+        }
     }
 
     #[test]

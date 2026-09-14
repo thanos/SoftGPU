@@ -1,8 +1,9 @@
 //! SoftGPU ROCr/HSA adapter (`libhsa-runtime64`).
 //!
-//! Phase 1/2 surface: `hsa_init`, `hsa_shut_down`, `hsa_system_get_info` (subset),
-//! `hsa_iterate_agents`, `hsa_agent_get_info`, and `hsa_status_string`. Remaining
-//! APIs are fail-closed generated C stubs.
+//! Phase 4 surface: init/shutdown/system info, agent discovery (`FEATURE` =
+//! `KERNEL_DISPATCH` for queue + AQL interception), Path C memory, signals,
+//! queues, and diagnostic AQL complete/reject. Kernel execution remains
+//! unsupported.
 //!
 //! # Panic / unwind policy
 //!
@@ -14,24 +15,14 @@
 pub mod ffi;
 pub mod status;
 
-use softgpu_core::runtime::{self, RuntimeError};
+use softgpu_core::memory::{PoolInfoValue, RegionInfoValue};
+use softgpu_core::runtime::{self, AgentInfoValue, PoolInfoAttr, RegionInfoAttr, RuntimeError};
 use softgpu_core::{AgentInfoAttr, AgentKind, DeviceProfile, PackedHandle};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::time::Instant;
 
-pub use ffi::{
-    hsa_agent_info_t, hsa_agent_t, hsa_device_type_t, hsa_status_t, hsa_system_info_t,
-    HSA_AGENT_INFO_DEVICE, HSA_AGENT_INFO_FEATURE, HSA_AGENT_INFO_NAME, HSA_AGENT_INFO_VENDOR_NAME,
-    HSA_AGENT_INFO_VERSION_MAJOR, HSA_AGENT_INFO_VERSION_MINOR, HSA_DEVICE_TYPE_CPU,
-    HSA_DEVICE_TYPE_GPU, HSA_ENDIANNESS_LITTLE, HSA_MACHINE_MODEL_LARGE, HSA_STATUS_ERROR,
-    HSA_STATUS_ERROR_INVALID_AGENT, HSA_STATUS_ERROR_INVALID_ARGUMENT,
-    HSA_STATUS_ERROR_NOT_INITIALIZED, HSA_STATUS_ERROR_REFCOUNT_OVERFLOW, HSA_STATUS_INFO_BREAK,
-    HSA_STATUS_SUCCESS, HSA_SYSTEM_INFO_ENDIANNESS, HSA_SYSTEM_INFO_EXTENSIONS,
-    HSA_SYSTEM_INFO_MACHINE_MODEL, HSA_SYSTEM_INFO_SIGNAL_MAX_WAIT, HSA_SYSTEM_INFO_TIMESTAMP,
-    HSA_SYSTEM_INFO_TIMESTAMP_FREQUENCY, HSA_SYSTEM_INFO_VERSION_MAJOR,
-    HSA_SYSTEM_INFO_VERSION_MINOR,
-};
+pub use ffi::*;
 
 fn map_runtime_error(err: RuntimeError) -> hsa_status_t {
     match err {
@@ -41,6 +32,13 @@ fn map_runtime_error(err: RuntimeError) -> hsa_status_t {
             HSA_STATUS_ERROR_INVALID_ARGUMENT
         }
         RuntimeError::InvalidAgent => HSA_STATUS_ERROR_INVALID_AGENT,
+        RuntimeError::InvalidRegion => HSA_STATUS_ERROR_INVALID_REGION,
+        RuntimeError::InvalidPool => HSA_STATUS_ERROR_INVALID_MEMORY_POOL,
+        RuntimeError::InvalidSignal => HSA_STATUS_ERROR_INVALID_SIGNAL,
+        RuntimeError::InvalidQueue => HSA_STATUS_ERROR_INVALID_QUEUE,
+        RuntimeError::InvalidQueueCreation => HSA_STATUS_ERROR_INVALID_QUEUE_CREATION,
+        RuntimeError::InvalidAllocation => HSA_STATUS_ERROR_INVALID_ALLOCATION,
+        RuntimeError::OutOfResources => HSA_STATUS_ERROR_OUT_OF_RESOURCES,
         RuntimeError::Internal(_) => HSA_STATUS_ERROR,
     }
 }
@@ -60,12 +58,45 @@ pub fn load_profile_path(path: impl AsRef<Path>) -> Result<(), String> {
 
 fn map_attr(attr: hsa_agent_info_t) -> Option<AgentInfoAttr> {
     match attr {
-        ffi::HSA_AGENT_INFO_NAME => Some(AgentInfoAttr::Name),
-        ffi::HSA_AGENT_INFO_VENDOR_NAME => Some(AgentInfoAttr::VendorName),
-        ffi::HSA_AGENT_INFO_FEATURE => Some(AgentInfoAttr::Feature),
-        ffi::HSA_AGENT_INFO_DEVICE => Some(AgentInfoAttr::Device),
-        ffi::HSA_AGENT_INFO_VERSION_MAJOR => Some(AgentInfoAttr::VersionMajor),
-        ffi::HSA_AGENT_INFO_VERSION_MINOR => Some(AgentInfoAttr::VersionMinor),
+        HSA_AGENT_INFO_NAME => Some(AgentInfoAttr::Name),
+        HSA_AGENT_INFO_VENDOR_NAME => Some(AgentInfoAttr::VendorName),
+        HSA_AGENT_INFO_FEATURE => Some(AgentInfoAttr::Feature),
+        HSA_AGENT_INFO_DEVICE => Some(AgentInfoAttr::Device),
+        HSA_AGENT_INFO_VERSION_MAJOR => Some(AgentInfoAttr::VersionMajor),
+        HSA_AGENT_INFO_VERSION_MINOR => Some(AgentInfoAttr::VersionMinor),
+        HSA_AGENT_INFO_QUEUES_MAX => Some(AgentInfoAttr::QueuesMax),
+        HSA_AGENT_INFO_QUEUE_MIN_SIZE => Some(AgentInfoAttr::QueueMinSize),
+        HSA_AGENT_INFO_QUEUE_MAX_SIZE => Some(AgentInfoAttr::QueueMaxSize),
+        HSA_AGENT_INFO_QUEUE_TYPE => Some(AgentInfoAttr::QueueType),
+        _ => None,
+    }
+}
+
+fn map_region_attr(attr: hsa_region_info_t) -> Option<RegionInfoAttr> {
+    match attr {
+        HSA_REGION_INFO_SEGMENT => Some(RegionInfoAttr::Segment),
+        HSA_REGION_INFO_GLOBAL_FLAGS => Some(RegionInfoAttr::GlobalFlags),
+        HSA_REGION_INFO_SIZE => Some(RegionInfoAttr::Size),
+        HSA_REGION_INFO_ALLOC_MAX_SIZE => Some(RegionInfoAttr::AllocMaxSize),
+        HSA_REGION_INFO_RUNTIME_ALLOC_ALLOWED => Some(RegionInfoAttr::RuntimeAllocAllowed),
+        HSA_REGION_INFO_RUNTIME_ALLOC_GRANULE => Some(RegionInfoAttr::Granule),
+        HSA_REGION_INFO_RUNTIME_ALLOC_ALIGNMENT => Some(RegionInfoAttr::Alignment),
+        _ => None,
+    }
+}
+
+fn map_pool_attr(attr: hsa_amd_memory_pool_info_t) -> Option<PoolInfoAttr> {
+    match attr {
+        HSA_AMD_MEMORY_POOL_INFO_SEGMENT => Some(PoolInfoAttr::Segment),
+        HSA_AMD_MEMORY_POOL_INFO_GLOBAL_FLAGS => Some(PoolInfoAttr::GlobalFlags),
+        HSA_AMD_MEMORY_POOL_INFO_SIZE => Some(PoolInfoAttr::Size),
+        HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_ALLOWED => Some(PoolInfoAttr::RuntimeAllocAllowed),
+        HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_GRANULE => Some(PoolInfoAttr::Granule),
+        HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_ALIGNMENT => Some(PoolInfoAttr::Alignment),
+        HSA_AMD_MEMORY_POOL_INFO_ACCESSIBLE_BY_ALL => Some(PoolInfoAttr::AccessibleByAll),
+        HSA_AMD_MEMORY_POOL_INFO_ALLOC_MAX_SIZE => Some(PoolInfoAttr::AllocMaxSize),
+        HSA_AMD_MEMORY_POOL_INFO_LOCATION => Some(PoolInfoAttr::Location),
+        HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_REC_GRANULE => Some(PoolInfoAttr::RecGranule),
         _ => None,
     }
 }
@@ -87,7 +118,6 @@ fn write_u32(dest: *mut core::ffi::c_void, value: u32) -> hsa_status_t {
     if dest.is_null() {
         return HSA_STATUS_ERROR_INVALID_ARGUMENT;
     }
-    // SAFETY: caller buffer must hold a u32 for this attribute.
     unsafe {
         *(dest as *mut u32) = value;
     }
@@ -98,7 +128,6 @@ fn write_u16(dest: *mut core::ffi::c_void, value: u16) -> hsa_status_t {
     if dest.is_null() {
         return HSA_STATUS_ERROR_INVALID_ARGUMENT;
     }
-    // SAFETY: caller buffer must hold a u16 for this attribute.
     unsafe {
         *(dest as *mut u16) = value;
     }
@@ -109,9 +138,28 @@ fn write_u64(dest: *mut core::ffi::c_void, value: u64) -> hsa_status_t {
     if dest.is_null() {
         return HSA_STATUS_ERROR_INVALID_ARGUMENT;
     }
-    // SAFETY: caller buffer must hold a u64 for this attribute.
     unsafe {
         *(dest as *mut u64) = value;
+    }
+    HSA_STATUS_SUCCESS
+}
+
+fn write_usize(dest: *mut core::ffi::c_void, value: usize) -> hsa_status_t {
+    if dest.is_null() {
+        return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+    unsafe {
+        *(dest as *mut usize) = value;
+    }
+    HSA_STATUS_SUCCESS
+}
+
+fn write_bool(dest: *mut core::ffi::c_void, value: bool) -> hsa_status_t {
+    if dest.is_null() {
+        return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+    unsafe {
+        *(dest as *mut bool) = value;
     }
     HSA_STATUS_SUCCESS
 }
@@ -120,6 +168,16 @@ fn soft_clock_ns() -> u64 {
     static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
     let start = START.get_or_init(Instant::now);
     u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX)
+}
+
+fn require_initialized() -> Result<(), RuntimeError> {
+    runtime::with_runtime(|rt| {
+        if !rt.is_initialized() {
+            Err(RuntimeError::NotInitialized)
+        } else {
+            Ok(())
+        }
+    })?
 }
 
 /// # Safety
@@ -158,22 +216,14 @@ pub unsafe extern "C" fn hsa_system_get_info(
         if value.is_null() {
             return HSA_STATUS_ERROR_INVALID_ARGUMENT;
         }
-        match runtime::with_runtime(|rt| {
-            if !rt.is_initialized() {
-                Err(RuntimeError::NotInitialized)
-            } else {
-                Ok(())
-            }
-        }) {
-            Ok(Ok(())) => {}
-            Ok(Err(err)) | Err(err) => return map_runtime_error(err),
+        if let Err(err) = require_initialized() {
+            return map_runtime_error(err);
         }
 
         match attribute {
             HSA_SYSTEM_INFO_VERSION_MAJOR => write_u16(value, 1),
             HSA_SYSTEM_INFO_VERSION_MINOR => write_u16(value, 2),
             HSA_SYSTEM_INFO_TIMESTAMP => write_u64(value, soft_clock_ns()),
-            // Provisional SoftGPU software clock (not hardware). Not for conformance.
             HSA_SYSTEM_INFO_TIMESTAMP_FREQUENCY => write_u64(value, 1_000_000_000),
             HSA_SYSTEM_INFO_SIGNAL_MAX_WAIT => write_u64(value, u64::from(u32::MAX)),
             HSA_SYSTEM_INFO_ENDIANNESS => {
@@ -197,7 +247,6 @@ pub unsafe extern "C" fn hsa_system_get_info(
                 }
             }
             HSA_SYSTEM_INFO_EXTENSIONS => {
-                // SAFETY: HSA requires uint8_t[128]; SoftGPU advertises no extensions yet.
                 let buf = unsafe { core::slice::from_raw_parts_mut(value as *mut u8, 128) };
                 buf.fill(0);
                 HSA_STATUS_SUCCESS
@@ -282,19 +331,19 @@ pub unsafe extern "C" fn hsa_agent_get_info(
         let handle = PackedHandle::from_raw(agent.handle);
         match runtime::with_runtime(|rt| rt.agent_get_info(handle, attr)) {
             Ok(Ok(info)) => match info {
-                softgpu_core::runtime::AgentInfoValue::Name(s)
-                | softgpu_core::runtime::AgentInfoValue::VendorName(s) => {
+                AgentInfoValue::Name(s) | AgentInfoValue::VendorName(s) => {
                     write_c_string64(value, &s)
                 }
-                softgpu_core::runtime::AgentInfoValue::Feature(mask) => write_u32(value, mask),
-                softgpu_core::runtime::AgentInfoValue::Device(kind) => {
+                AgentInfoValue::Feature(mask) => write_u32(value, mask),
+                AgentInfoValue::Device(kind) => {
                     let device = match kind {
-                        AgentKind::Cpu => ffi::HSA_DEVICE_TYPE_CPU,
-                        AgentKind::Gpu => ffi::HSA_DEVICE_TYPE_GPU,
+                        AgentKind::Cpu => HSA_DEVICE_TYPE_CPU,
+                        AgentKind::Gpu => HSA_DEVICE_TYPE_GPU,
                     };
                     write_u32(value, device)
                 }
-                softgpu_core::runtime::AgentInfoValue::U16(v) => write_u16(value, v),
+                AgentInfoValue::U16(v) => write_u16(value, v),
+                AgentInfoValue::U32(v) => write_u32(value, v),
             },
             Ok(Err(err)) => map_runtime_error(err),
             Err(err) => map_runtime_error(err),
@@ -320,4 +369,563 @@ pub unsafe extern "C" fn hsa_status_string(
         }
         HSA_STATUS_SUCCESS
     })
+}
+
+/// # Safety
+///
+/// Callback may nest SoftGPU HSA calls; lock is released before callback.
+#[no_mangle]
+pub unsafe extern "C" fn hsa_agent_iterate_regions(
+    agent: hsa_agent_t,
+    callback: Option<unsafe extern "C" fn(hsa_region_t, *mut core::ffi::c_void) -> hsa_status_t>,
+    data: *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        let Some(callback) = callback else {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        };
+        let regions = match runtime::with_runtime(|rt| {
+            let mut out = Vec::new();
+            rt.iterate_regions(PackedHandle::from_raw(agent.handle), |space| {
+                out.push(hsa_region_t {
+                    handle: space.handle.raw(),
+                });
+                Ok(())
+            })?;
+            Ok(out)
+        }) {
+            Ok(Ok(v)) => v,
+            Ok(Err(err)) => return map_runtime_error(err),
+            Err(err) => return map_runtime_error(err),
+        };
+        for region in regions {
+            let status = catch_unwind(AssertUnwindSafe(|| callback(region, data)))
+                .unwrap_or(HSA_STATUS_ERROR);
+            if status != HSA_STATUS_SUCCESS {
+                return status;
+            }
+        }
+        HSA_STATUS_SUCCESS
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_region_get_info(
+    region: hsa_region_t,
+    attribute: hsa_region_info_t,
+    value: *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if value.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        let Some(attr) = map_region_attr(attribute) else {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        };
+        match runtime::with_runtime(|rt| {
+            rt.region_get_info(PackedHandle::from_raw(region.handle), attr)
+        }) {
+            Ok(Ok(info)) => match info {
+                RegionInfoValue::Segment(v) | RegionInfoValue::GlobalFlags(v) => {
+                    write_u32(value, v)
+                }
+                RegionInfoValue::Size(v)
+                | RegionInfoValue::AllocMaxSize(v)
+                | RegionInfoValue::Granule(v)
+                | RegionInfoValue::Alignment(v) => write_usize(value, v),
+                RegionInfoValue::RuntimeAllocAllowed(v) => write_bool(value, v),
+            },
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_memory_allocate(
+    region: hsa_region_t,
+    size: usize,
+    ptr: *mut *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if ptr.is_null() || size == 0 {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match runtime::with_runtime(|rt| {
+            rt.memory_allocate(PackedHandle::from_raw(region.handle), size)
+        }) {
+            Ok(Ok(p)) => {
+                unsafe {
+                    *ptr = p as *mut core::ffi::c_void;
+                }
+                HSA_STATUS_SUCCESS
+            }
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_memory_free(ptr: *mut core::ffi::c_void) -> hsa_status_t {
+    catch_status(
+        || match runtime::with_runtime(|rt| rt.memory_free(ptr as *mut u8)) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        },
+    )
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_memory_copy(
+    dst: *mut core::ffi::c_void,
+    src: *const core::ffi::c_void,
+    size: usize,
+) -> hsa_status_t {
+    catch_status(|| {
+        match runtime::with_runtime(|rt| {
+            // SAFETY: HSA caller provides valid dst/src of `size`.
+            unsafe { rt.memory_copy(dst as *mut u8, src as *const u8, size) }
+        }) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_amd_agent_iterate_memory_pools(
+    agent: hsa_agent_t,
+    callback: Option<
+        unsafe extern "C" fn(hsa_amd_memory_pool_t, *mut core::ffi::c_void) -> hsa_status_t,
+    >,
+    data: *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        let Some(callback) = callback else {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        };
+        let pools = match runtime::with_runtime(|rt| {
+            let mut out = Vec::new();
+            rt.iterate_pools(PackedHandle::from_raw(agent.handle), |space| {
+                out.push(hsa_amd_memory_pool_t {
+                    handle: space.handle.raw(),
+                });
+                Ok(())
+            })?;
+            Ok(out)
+        }) {
+            Ok(Ok(v)) => v,
+            Ok(Err(err)) => return map_runtime_error(err),
+            Err(err) => return map_runtime_error(err),
+        };
+        for pool in pools {
+            let status =
+                catch_unwind(AssertUnwindSafe(|| callback(pool, data))).unwrap_or(HSA_STATUS_ERROR);
+            if status != HSA_STATUS_SUCCESS {
+                return status;
+            }
+        }
+        HSA_STATUS_SUCCESS
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_amd_memory_pool_get_info(
+    memory_pool: hsa_amd_memory_pool_t,
+    attribute: hsa_amd_memory_pool_info_t,
+    value: *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if value.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        let Some(attr) = map_pool_attr(attribute) else {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        };
+        match runtime::with_runtime(|rt| {
+            rt.pool_get_info(PackedHandle::from_raw(memory_pool.handle), attr)
+        }) {
+            Ok(Ok(info)) => match info {
+                PoolInfoValue::Segment(v)
+                | PoolInfoValue::GlobalFlags(v)
+                | PoolInfoValue::Location(v) => write_u32(value, v),
+                PoolInfoValue::Size(v)
+                | PoolInfoValue::Granule(v)
+                | PoolInfoValue::Alignment(v)
+                | PoolInfoValue::AllocMaxSize(v)
+                | PoolInfoValue::RecGranule(v) => write_usize(value, v),
+                PoolInfoValue::RuntimeAllocAllowed(v) | PoolInfoValue::AccessibleByAll(v) => {
+                    write_bool(value, v)
+                }
+            },
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_amd_memory_pool_allocate(
+    memory_pool: hsa_amd_memory_pool_t,
+    size: usize,
+    _flags: u32,
+    ptr: *mut *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if ptr.is_null() || size == 0 {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match runtime::with_runtime(|rt| {
+            rt.memory_allocate(PackedHandle::from_raw(memory_pool.handle), size)
+        }) {
+            Ok(Ok(p)) => {
+                unsafe {
+                    *ptr = p as *mut core::ffi::c_void;
+                }
+                HSA_STATUS_SUCCESS
+            }
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_amd_memory_pool_free(ptr: *mut core::ffi::c_void) -> hsa_status_t {
+    catch_status(
+        || match runtime::with_runtime(|rt| rt.memory_free(ptr as *mut u8)) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        },
+    )
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_amd_agents_allow_access(
+    num_agents: u32,
+    agents: *const hsa_agent_t,
+    _flags: *const u32,
+    ptr: *const core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if num_agents > 0 && agents.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        let list: Vec<PackedHandle> = if num_agents == 0 {
+            Vec::new()
+        } else {
+            // SAFETY: caller provides num_agents valid agents.
+            unsafe { core::slice::from_raw_parts(agents, num_agents as usize) }
+                .iter()
+                .map(|a| PackedHandle::from_raw(a.handle))
+                .collect()
+        };
+        match runtime::with_runtime(|rt| rt.agents_allow_access(&list, ptr as *const u8)) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_amd_agent_memory_pool_get_info(
+    agent: hsa_agent_t,
+    memory_pool: hsa_amd_memory_pool_t,
+    attribute: hsa_amd_agent_memory_pool_info_t,
+    value: *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if value.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        if attribute != HSA_AMD_AGENT_MEMORY_POOL_INFO_ACCESS {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match runtime::with_runtime(|rt| {
+            rt.agent_memory_pool_access(
+                PackedHandle::from_raw(agent.handle),
+                PackedHandle::from_raw(memory_pool.handle),
+            )
+        }) {
+            Ok(Ok(access)) => write_u32(value, access),
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_create(
+    initial_value: hsa_signal_value_t,
+    num_consumers: u32,
+    consumers: *const hsa_agent_t,
+    signal: *mut hsa_signal_t,
+) -> hsa_status_t {
+    catch_status(|| {
+        if signal.is_null() || (num_consumers > 0 && consumers.is_null()) {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match runtime::with_runtime(|rt| rt.signal_create(initial_value)) {
+            Ok(Ok(handle)) => {
+                unsafe {
+                    *signal = hsa_signal_t {
+                        handle: handle.raw(),
+                    };
+                }
+                HSA_STATUS_SUCCESS
+            }
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_destroy(signal: hsa_signal_t) -> hsa_status_t {
+    catch_status(|| {
+        match runtime::with_runtime(|rt| rt.signal_destroy(PackedHandle::from_raw(signal.handle))) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+fn signal_load_impl(signal: hsa_signal_t) -> hsa_signal_value_t {
+    match runtime::with_runtime(|rt| rt.signal_load(PackedHandle::from_raw(signal.handle))) {
+        Ok(Ok(v)) => v,
+        _ => 0,
+    }
+}
+
+fn signal_store_impl(signal: hsa_signal_t, value: hsa_signal_value_t) {
+    let _ =
+        runtime::with_runtime(|rt| rt.signal_store(PackedHandle::from_raw(signal.handle), value));
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_load_scacquire(signal: hsa_signal_t) -> hsa_signal_value_t {
+    catch_unwind(AssertUnwindSafe(|| signal_load_impl(signal))).unwrap_or(0)
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_load_relaxed(signal: hsa_signal_t) -> hsa_signal_value_t {
+    catch_unwind(AssertUnwindSafe(|| signal_load_impl(signal))).unwrap_or(0)
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_store_screlease(
+    signal: hsa_signal_t,
+    value: hsa_signal_value_t,
+) {
+    let _ = catch_unwind(AssertUnwindSafe(|| signal_store_impl(signal, value)));
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_store_relaxed(signal: hsa_signal_t, value: hsa_signal_value_t) {
+    let _ = catch_unwind(AssertUnwindSafe(|| signal_store_impl(signal, value)));
+}
+
+fn signal_wait_impl(
+    signal: hsa_signal_t,
+    condition: hsa_signal_condition_t,
+    compare_value: hsa_signal_value_t,
+    timeout_hint: u64,
+    wait_state_hint: hsa_wait_state_t,
+) -> hsa_signal_value_t {
+    // Clone Arc under the runtime lock, then wait without holding it so
+    // destroy/cancel can proceed from another thread.
+    let sig = match runtime::with_runtime(|rt| rt.signal_arc(PackedHandle::from_raw(signal.handle)))
+    {
+        Ok(Ok(sig)) => sig,
+        _ => return 0,
+    };
+    let cond = match softgpu_core::SignalCondition::from_u32(condition) {
+        Some(c) => c,
+        None => return 0,
+    };
+    match sig.wait(cond, compare_value, timeout_hint, wait_state_hint) {
+        softgpu_core::SignalWaitOutcome::Satisfied(v)
+        | softgpu_core::SignalWaitOutcome::TimedOut(v)
+        | softgpu_core::SignalWaitOutcome::Cancelled(v) => v,
+    }
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_wait_scacquire(
+    signal: hsa_signal_t,
+    condition: hsa_signal_condition_t,
+    compare_value: hsa_signal_value_t,
+    timeout_hint: u64,
+    wait_state_hint: hsa_wait_state_t,
+) -> hsa_signal_value_t {
+    catch_unwind(AssertUnwindSafe(|| {
+        signal_wait_impl(
+            signal,
+            condition,
+            compare_value,
+            timeout_hint,
+            wait_state_hint,
+        )
+    }))
+    .unwrap_or(0)
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_signal_wait_relaxed(
+    signal: hsa_signal_t,
+    condition: hsa_signal_condition_t,
+    compare_value: hsa_signal_value_t,
+    timeout_hint: u64,
+    wait_state_hint: hsa_wait_state_t,
+) -> hsa_signal_value_t {
+    catch_unwind(AssertUnwindSafe(|| {
+        signal_wait_impl(
+            signal,
+            condition,
+            compare_value,
+            timeout_hint,
+            wait_state_hint,
+        )
+    }))
+    .unwrap_or(0)
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_create(
+    agent: hsa_agent_t,
+    size: u32,
+    type_: hsa_queue_type32_t,
+    _callback: Option<unsafe extern "C" fn(hsa_status_t, *mut hsa_queue_t, *mut core::ffi::c_void)>,
+    _data: *mut core::ffi::c_void,
+    _private_segment_size: u32,
+    _group_segment_size: u32,
+    queue: *mut *mut hsa_queue_t,
+) -> hsa_status_t {
+    catch_status(|| {
+        if queue.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match runtime::with_runtime(|rt| {
+            rt.queue_create(PackedHandle::from_raw(agent.handle), size, type_)
+        }) {
+            Ok(Ok(abi)) => {
+                unsafe {
+                    *queue = abi;
+                }
+                HSA_STATUS_SUCCESS
+            }
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_destroy(queue: *mut hsa_queue_t) -> hsa_status_t {
+    catch_status(
+        || match runtime::with_runtime(|rt| rt.queue_destroy(queue)) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        },
+    )
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_load_read_index_scacquire(queue: *const hsa_queue_t) -> u64 {
+    catch_unwind(AssertUnwindSafe(|| {
+        runtime::with_runtime(|rt| rt.queue_load_read_index(queue))
+            .ok()
+            .and_then(Result::ok)
+            .unwrap_or(0)
+    }))
+    .unwrap_or(0)
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_load_read_index_relaxed(queue: *const hsa_queue_t) -> u64 {
+    unsafe { hsa_queue_load_read_index_scacquire(queue) }
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_load_write_index_scacquire(queue: *const hsa_queue_t) -> u64 {
+    catch_unwind(AssertUnwindSafe(|| {
+        runtime::with_runtime(|rt| rt.queue_load_write_index(queue))
+            .ok()
+            .and_then(Result::ok)
+            .unwrap_or(0)
+    }))
+    .unwrap_or(0)
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_load_write_index_relaxed(queue: *const hsa_queue_t) -> u64 {
+    unsafe { hsa_queue_load_write_index_scacquire(queue) }
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_store_write_index_relaxed(
+    queue: *const hsa_queue_t,
+    value: u64,
+) {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        let _ = runtime::with_runtime(|rt| rt.queue_store_write_index(queue, value));
+    }));
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_store_write_index_screlease(
+    queue: *const hsa_queue_t,
+    value: u64,
+) {
+    unsafe { hsa_queue_store_write_index_relaxed(queue, value) }
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_store_read_index_relaxed(queue: *const hsa_queue_t, value: u64) {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        let _ = runtime::with_runtime(|rt| rt.queue_store_read_index(queue, value));
+    }));
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_queue_store_read_index_screlease(
+    queue: *const hsa_queue_t,
+    value: u64,
+) {
+    unsafe { hsa_queue_store_read_index_relaxed(queue, value) }
 }

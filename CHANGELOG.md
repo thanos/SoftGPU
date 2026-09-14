@@ -5,6 +5,18 @@ All notable changes to SoftGPU are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Phase 5: `softgpu-amd-code-object` bounded ELF64 + MessagePack AMDHSA metadata parser (`NT_AMDGPU_METADATA`), `gfx1201` target gate, `softgpu inspect-code-object`, synthetic fixtures, fuzz smoke floor, Article 6, [`docs/code-object.md`](docs/code-object.md).
+- ROCm helper `environments/rocm-x86_64/run-phase5-code-object.sh` (synthetic gate + optional hipcc/llvm-readelf).
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-5`; status/support-matrix/README honesty updated.
+- Phase 4 AQL diagnostic interception retained (completion ≠ kernel success).
+
 ## [0.1.0] — 2026-09-14
 
 ### Added
@@ -20,4 +32,5 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Queues, AQL, kernels, and `hipGetDeviceCount > 0` remain **unsupported** / out of scope for 0.1.0.
 - Fidelity claimed: **ABI** (see README and `docs/status.md`).
 
+[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/thanos/SoftGPU/releases/tag/v0.1.0

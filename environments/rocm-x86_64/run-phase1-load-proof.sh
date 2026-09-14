@@ -115,7 +115,7 @@ export LD_LIBRARY_PATH="$LIBDIR:$ROCM_PATH/lib:${LD_LIBRARY_PATH:-}"
 export SOFTGPU_PROFILE="$ROOT/profiles/amd-radeon-ai-pro-r9700-gfx1201-v0.json"
 "$CARGO_TARGET_DIR/softgpu-hip-load-probe"
 
-echo "== Phase 2: HIP-linked HSA agent discovery =="
+echo "== Phase 2/3: HIP-linked HSA agent discovery (FEATURE=KERNEL_DISPATCH) =="
 # Discovery probe calls HSA APIs directly; link SoftGPU's staged libhsa-runtime64
 # (same SONAME HIP uses). Runtime LD_LIBRARY_PATH already prefers SoftGPU.
 "$HIPCC" -O2 -o "$CARGO_TARGET_DIR/softgpu-hip-discovery-probe" \
@@ -123,4 +123,19 @@ echo "== Phase 2: HIP-linked HSA agent discovery =="
   -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -lhsa-runtime64
 "$CARGO_TARGET_DIR/softgpu-hip-discovery-probe"
 
-echo "== PASS: Phase 1 load proof + Phase 2 agent discovery =="
+echo "== Phase 3: memory Path C + queue observe =="
+cc -O2 -I"$ROCM_PATH/include" -o "$CARGO_TARGET_DIR/softgpu-phase3-queue-probe" \
+  tools/softgpu-phase3-queue-probe/main.c \
+  -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -lhsa-runtime64
+"$CARGO_TARGET_DIR/softgpu-phase3-queue-probe"
+
+echo "== Phase 4: AQL diagnostic interception (SoftGPU-controlled subset) =="
+cc -O2 -I"$ROCM_PATH/include" -o "$CARGO_TARGET_DIR/softgpu-phase4-aql-probe" \
+  tools/softgpu-phase4-aql-probe/main.c \
+  -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -lhsa-runtime64
+"$CARGO_TARGET_DIR/softgpu-phase4-aql-probe"
+
+echo "== Phase 5: AMD code-object metadata inspect =="
+bash "$ROOT/environments/rocm-x86_64/run-phase5-code-object.sh"
+
+echo "== PASS: Phase 1–5 SoftGPU substitution / metadata probes =="

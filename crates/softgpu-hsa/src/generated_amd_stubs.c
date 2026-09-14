@@ -156,36 +156,6 @@ hsa_status_t HSA_API hsa_amd_queue_cu_get_mask(const hsa_queue_t* queue, uint32_
 }
 
 /* auto-stub */
-hsa_status_t HSA_API hsa_amd_memory_pool_get_info(hsa_amd_memory_pool_t memory_pool,
-                                 hsa_amd_memory_pool_info_t attribute,
-                                 void* value)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_amd_agent_iterate_memory_pools(
-    hsa_agent_t agent,
-    hsa_status_t (*callback)(hsa_amd_memory_pool_t memory_pool, void* data),
-    void* data)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_amd_memory_pool_allocate(hsa_amd_memory_pool_t memory_pool, size_t size,
-                                 uint32_t flags, void** ptr)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_amd_memory_pool_free(void* ptr)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
 hsa_status_t HSA_API hsa_amd_memory_async_copy(void* dst, hsa_agent_t dst_agent, const void* src,
                               hsa_agent_t src_agent, size_t size,
                               uint32_t num_dep_signals,
@@ -236,21 +206,6 @@ hsa_status_t HSA_API hsa_amd_memory_async_copy_rect(
     const hsa_dim3_t* src_offset, const hsa_dim3_t* range, hsa_agent_t copy_agent,
     hsa_amd_copy_direction_t dir, uint32_t num_dep_signals, const hsa_signal_t* dep_signals,
     hsa_signal_t completion_signal)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_amd_agent_memory_pool_get_info(
-    hsa_agent_t agent, hsa_amd_memory_pool_t memory_pool,
-    hsa_amd_agent_memory_pool_info_t attribute, void* value)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_amd_agents_allow_access(uint32_t num_agents, const hsa_agent_t* agents,
-                                const uint32_t* flags, const void* ptr)
 {
   return HSA_STATUS_ERROR;
 }
@@ -504,4 +459,4 @@ hsa_status_t HSA_API hsa_amd_counted_queue_release(hsa_queue_t* queue)
   return HSA_STATUS_ERROR;
 }
 
-/* generated stub count: 63 */
+/* generated stub count: 57 */

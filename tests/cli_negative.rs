@@ -33,9 +33,22 @@ fn empty_log_level_value_fails() {
 }
 
 #[test]
-fn enable_queues_true_is_unsupported() {
+fn enable_queues_true_is_accepted() {
     let output = softgpu_bin()
         .args(["check-config", "log_level=info", "enable_queues=true"])
+        .output()
+        .expect("run softgpu");
+    assert!(
+        output.status.success(),
+        "stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn enable_execution_true_is_unsupported() {
+    let output = softgpu_bin()
+        .args(["check-config", "log_level=info", "enable_execution=true"])
         .output()
         .expect("run softgpu");
     assert!(!output.status.success());

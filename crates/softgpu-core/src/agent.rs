@@ -2,6 +2,9 @@
 
 use crate::handle::PackedHandle;
 use crate::profile::DeviceProfile;
+use crate::queue::{
+    QUEUE_TYPE_MULTI, SOFTGPU_QUEUES_MAX, SOFTGPU_QUEUE_MAX_SIZE, SOFTGPU_QUEUE_MIN_SIZE,
+};
 
 /// SoftGPU agent device class (vendor-neutral).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,7 +22,10 @@ impl AgentKind {
     }
 }
 
-/// Attributes SoftGPU may answer for an agent in Phase 2.
+/// `HSA_AGENT_FEATURE_KERNEL_DISPATCH` — SoftGPU queue + AQL intercept claim only.
+pub const AGENT_FEATURE_KERNEL_DISPATCH: u32 = 1;
+
+/// Attributes SoftGPU may answer for an agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentInfoAttr {
     Name,
@@ -28,6 +34,10 @@ pub enum AgentInfoAttr {
     Device,
     VersionMajor,
     VersionMinor,
+    QueuesMax,
+    QueueMinSize,
+    QueueMaxSize,
+    QueueType,
 }
 
 impl AgentInfoAttr {
@@ -39,6 +49,10 @@ impl AgentInfoAttr {
             Self::Device => "device",
             Self::VersionMajor => "version_major",
             Self::VersionMinor => "version_minor",
+            Self::QueuesMax => "queues_max",
+            Self::QueueMinSize => "queue_min_size",
+            Self::QueueMaxSize => "queue_max_size",
+            Self::QueueType => "queue_type",
         }
     }
 }
@@ -50,14 +64,18 @@ pub struct VirtualAgent {
     pub kind: AgentKind,
     pub name: String,
     pub vendor_name: String,
-    /// Bitmask of agent features. Phase 2 keeps this at 0 (no dispatch claim).
+    /// Bitmask of agent features. SoftGPU: `KERNEL_DISPATCH` for queue + AQL intercept only.
     pub feature_mask: u32,
     pub profile_id: String,
     pub profile_revision: String,
+    pub queues_max: u32,
+    pub queue_min_size: u32,
+    pub queue_max_size: u32,
+    pub queue_type: u32,
 }
 
 impl VirtualAgent {
-    /// Build the Phase 2 default GPU agent from a device profile.
+    /// Build the SoftGPU GPU agent from a device profile.
     pub fn gpu_from_profile(handle: PackedHandle, profile: &DeviceProfile) -> Self {
         let mut name = profile.identity.product_name.clone();
         name.truncate(63);
@@ -68,9 +86,15 @@ impl VirtualAgent {
             kind: AgentKind::Gpu,
             name,
             vendor_name,
-            feature_mask: 0,
+            // SoftGPU Phase 3: advertise kernel-agent for queue ABI observation.
+            // Packet execution remains unsupported (Phase 4).
+            feature_mask: AGENT_FEATURE_KERNEL_DISPATCH,
             profile_id: profile.profile_id.clone(),
             profile_revision: profile.profile_revision.clone(),
+            queues_max: SOFTGPU_QUEUES_MAX,
+            queue_min_size: SOFTGPU_QUEUE_MIN_SIZE,
+            queue_max_size: SOFTGPU_QUEUE_MAX_SIZE,
+            queue_type: QUEUE_TYPE_MULTI,
         }
     }
 }
@@ -83,7 +107,7 @@ mod tests {
     use crate::profile::{ProfileField, ProfileIdentity, ResourceLimits};
 
     #[test]
-    fn gpu_agent_truncates_names_and_claims_no_features() {
+    fn gpu_agent_truncates_names_and_claims_kernel_dispatch() {
         let profile = DeviceProfile {
             schema_version: 1,
             profile_id: "amd-radeon-ai-pro-r9700-gfx1201".into(),
@@ -106,7 +130,7 @@ mod tests {
         let agent =
             VirtualAgent::gpu_from_profile(PackedHandle::pack(HandleKind::Agent, 1, 0), &profile);
         assert_eq!(agent.kind, AgentKind::Gpu);
-        assert_eq!(agent.feature_mask, 0);
+        assert_eq!(agent.feature_mask, AGENT_FEATURE_KERNEL_DISPATCH);
         assert_eq!(agent.name, "Radeon AI PRO R9700");
         assert_eq!(agent.vendor_name, "AMD");
     }
