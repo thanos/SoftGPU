@@ -1,0 +1,9 @@
+/* SoftGPU must advertise the same ELF symbol version node AMD HIP expects.
+ * libamdhip64 requires version ROCR_1 from libhsa-runtime64 (not a SoftGPU-local name).
+ */
+ROCR_1 {
+  global:
+    hsa_*;
+  local:
+    *;
+};

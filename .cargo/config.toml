@@ -1,0 +1,10 @@
+# SoftGPU: GNU/Linux linker for the workspace.
+# softgpu-hsa's build.rs also installs a package-local wrapper (for crates.io).
+# This config keeps whole-workspace Linux builds (CI ROCm image, act, etc.)
+# using the same ROCR_1 version-script rewrite when the package build script
+# is not the sole linker source.
+[target.x86_64-unknown-linux-gnu]
+linker = "crates/softgpu-hsa/link-cdylib.sh"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "crates/softgpu-hsa/link-cdylib.sh"

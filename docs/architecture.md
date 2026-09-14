@@ -27,7 +27,9 @@ Vendor-neutral SoftGPU core
 AMD code-object frontend and, eventually, gfx1201 ISA interpreter
 ```
 
-Phase 0 implements **none** of the adapter or engines. It only defines contracts, vocabulary, and a profile schema so later phases fail closed consistently.
+Phase 0 defines contracts, vocabulary, and a profile schema.
+Phase 1/2 add a minimal ROCr/HSA `cdylib` and one virtual GPU agent.
+Queues, AQL, and instruction engines remain out of scope until later phases.
 
 ## Boundaries
 
@@ -65,4 +67,10 @@ See `softgpu::fidelity::FidelityLevel` and README. Rust host memory safety is **
 
 ## Crate layout policy
 
-Start as one crate (`softgpu`). Split `cdylib` HSA adapter and libraries only when Phase 1 load proof demands it. No speculative workspace sprawl in Phase 0.
+Workspace members:
+
+- `softgpu` — CLI
+- `softgpu-core` — vendor-neutral runtime, handles, agents, traces, profiles
+- `softgpu-hsa` — Linux-oriented `cdylib` HSA adapter (`libhsa_runtime64`)
+
+Further splits wait on proven seams (AQL, code objects, engines).

@@ -19,9 +19,13 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
       - name: Build and test (locked)
-        run: cargo test --locked
+        run: cargo test --workspace --locked
       - name: Clippy
-        run: cargo clippy --locked --all-targets -- -D warnings
+        run: cargo clippy --workspace --locked --all-targets -- -D warnings
+      - name: HSA layout probe
+        run: |
+          cc -I third_party/rocr-headers -o target/hsa-layout-probe tools/hsa-layout-probe/probe.c
+          ./target/hsa-layout-probe
       - name: Doc link check
         run: bash tools/check-docs-links.sh
       - name: Validate bundled profiles
@@ -39,31 +43,61 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
       - name: Build and test (locked)
-        run: cargo test --locked
+        run: cargo test --workspace --locked
       - name: Clippy
-        run: cargo clippy --locked --all-targets -- -D warnings
+        run: cargo clippy --workspace --locked --all-targets -- -D warnings
+      - name: HSA layout probe
+        run: |
+          cc -I third_party/rocr-headers -o target/hsa-layout-probe tools/hsa-layout-probe/probe.c
+          ./target/hsa-layout-probe
       - name: Doc link check
         run: bash tools/check-docs-links.sh
 
-  # Canonical ROCm/HIP integration gate — NOT implemented in Phase 0.
-  # This job must remain skipped (not a green "success" fake).
   rocm-integration:
-    name: ROCm/HIP integration (x86_64) — Phase 1+
+    name: ROCm/HIP SoftGPU load proof (x86_64)
     runs-on: ubuntu-24.04
-    # Explicit skip until Phase 1 pins an official ROCm image and load proof.
-    if: false
+    timeout-minutes: 180
     steps:
-      - name: Placeholder
-        run: echo "Phase 1 will replace this with pinned ROCm load proofs"
+      - uses: actions/checkout@v4
+      - name: Load ROCm image pin
+        id: pin
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC1091
+          source environments/rocm-x86_64/PINNED
+          echo "image=${ROCM_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "digest=${ROCM_IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "version=${ROCM_VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Pull pinned ROCm image
+        run: |
+          set -euo pipefail
+          docker pull "${{ steps.pin.outputs.image }}@${{ steps.pin.outputs.digest }}"
+      - name: Phase 1 HIP load proof in pinned ROCm container
+        run: |
+          set -euo pipefail
+          chmod +x environments/rocm-x86_64/ci-entrypoint.sh \
+                   environments/rocm-x86_64/run-phase1-load-proof.sh
+          docker run --rm \
+            --platform linux/amd64 \
+            -v "$PWD:/src:rw" \
+            -w /src \
+            -e CARGO_HOME=/tmp/cargo \
+            -e RUSTUP_HOME=/tmp/rustup \
+            "${{ steps.pin.outputs.image }}@${{ steps.pin.outputs.digest }}" \
+            bash environments/rocm-x86_64/ci-entrypoint.sh
 
-  # Annotate the matrix clearly in GitHub's UI via a always-running reporter.
   ci-result-policy:
     name: CI result policy (skipped ≠ passed)
     runs-on: ubuntu-24.04
-    needs: [core-macos, core-linux]
+    needs: [core-macos, core-linux, rocm-integration]
+    if: always()
     steps:
-      - name: Record Phase 0 gate status
+      - name: Record gate status
         run: |
-          echo "core-macos and core-linux are required and must pass."
-          echo "rocm-integration is intentionally skipped (if: false) until Phase 1."
-          echo "Do not treat a skipped ROCm job as SoftGPU ROCm compatibility."
+          echo "core-macos=${{ needs.core-macos.result }}"
+          echo "core-linux=${{ needs.core-linux.result }}"
+          echo "rocm-integration=${{ needs.rocm-integration.result }}"
+          test "${{ needs.core-macos.result }}" = "success"
+          test "${{ needs.core-linux.result }}" = "success"
+          test "${{ needs.rocm-integration.result }}" = "success"
+          echo "Phase 1 ROCm/HIP load proof is a required gate (not a skip)."

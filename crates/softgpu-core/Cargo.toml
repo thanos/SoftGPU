@@ -1,0 +1,16 @@
+[package]
+name = "softgpu-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Vendor-neutral SoftGPU runtime core (handles, agents, traces, profiles)"
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
+keywords = ["gpu", "emulation", "hsa", "runtime"]
+categories = ["development-tools", "emulators"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

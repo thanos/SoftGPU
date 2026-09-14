@@ -8,37 +8,24 @@ Allowed cell states: `implemented-unverified`, `verified-unit`, `verified-integr
 
 | Item | State | Notes |
 | --- | --- | --- |
-| macOS Apple Silicon + Rust 1.85 (`cargo test --locked`) | `verified-unit` | Phase 0 primary fast loop |
-| Linux x86-64 + Rust 1.85 (no ROCm) | `verified-unit` | Portability / CI |
-| Linux ARM64 core tests | `experimental` | Optional via Apple container later |
-| Linux x86-64 + pinned ROCm HIP/ROCr integration | `unsupported` | Phase 1+; CI job must report **skipped** until implemented |
-| Nightly Rust host features | `unsupported` | Prohibited |
+| macOS Apple Silicon + Rust 1.85 (`cargo test --workspace --locked`) | `verified-unit` | Phase 2 fast loop |
+| Linux x86-64 + Rust 1.85 (no ROCm) | `verified-unit` | CI core job |
+| Linux x86-64 + pinned ROCm HIP/ROCr integration | `implemented-unverified` → CI | Required `rocm-integration` job; ROCm **7.14.0** digest in `PINNED` |
 
 ## Runtime / ABI
 
 | Item | State | Notes |
 | --- | --- | --- |
-| HSA/ROCr cdylib exports | `unsupported` | Phase 1 |
-| Agent discovery | `unsupported` | Phase 2 |
-| Memory regions/pools, signals, queues | `unsupported` | Phase 3 |
-| AQL dispatch interception | `unsupported` | Phase 4 |
-| AMD code-object parse | `unsupported` | Phase 5 |
-| Functional execution | `unsupported` | Phase 6 |
-| gfx1201 ISA execution | `unsupported` | Phase 10–11 |
-| R9700 hardware differential | `unsupported` | Phase 12 |
+| HSA cdylib: init/shutdown/agents + fail-closed stubs | `verified-unit` / CI `verified-integration` | Phase 1 load proof |
+| Layout probe vs vendored `hsa.h` | `verified-unit` | `tools/hsa-layout-probe` |
+| HIP-linked SoftGPU load proof (anti-system-ROCr) | `implemented-unverified` | harness ready; promote on CI green |
+| Agent discovery (virtual GPU) | `verified-unit` (+ CI harness) | Phase 2; HIP-linked HSA iterate |
+| Advertised agent field provenance | `verified-unit` | `tests/advertised_fields.rs` |
+| Queues / signals / AQL | `unsupported` | Phase 3+ |
 
 ## Profiles
 
 | Profile | State | Notes |
 | --- | --- | --- |
-| `softgpu-generic` rev 0 | `verified-unit` | Schema only |
-| `amd-radeon-ai-pro-r9700-gfx1201` rev 0 | `verified-unit` | Identity `gfx1201` verified via ROCm docs; limits **unknown**; conformance **false** |
-
-## SoftGPU crate features (Phase 0)
-
-| Feature | State |
-| --- | --- |
-| Error taxonomy | `verified-unit` |
-| Fidelity enum | `verified-unit` |
-| Profile schema validation | `verified-unit` |
-| CLI negative config handling | `verified-unit` |
+| `softgpu-generic` rev 0 | `verified-unit` | |
+| `amd-radeon-ai-pro-r9700-gfx1201` rev 0 | `verified-unit` | identity only; limits unknown |

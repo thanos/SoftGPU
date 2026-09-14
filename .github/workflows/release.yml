@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: crates.io + GitHub Release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (rust-toolchain.toml)
+        run: rustup show
+
+      - name: Verify tag matches Cargo workspace version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          CARGO_VER="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if [[ "$VER" != "$CARGO_VER" ]]; then
+            echo "ERROR: tag $TAG does not match workspace version $CARGO_VER" >&2
+            exit 1
+          fi
+          echo "Publishing SoftGPU $VER"
+
+      - name: Dry-run softgpu-core package
+        run: cargo publish -p softgpu-core --locked --dry-run
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "ERROR: repository secret CARGO_REGISTRY_TOKEN is not set" >&2
+            exit 1
+          fi
+          cargo publish -p softgpu-core --locked
+          # crates.io index can lag briefly after the first crate lands.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if cargo info softgpu-core@${GITHUB_REF_NAME#v} >/dev/null 2>&1 \
+              || cargo search softgpu-core --limit 1 2>/dev/null | grep -q "^softgpu-core "; then
+              break
+            fi
+            echo "waiting for softgpu-core on crates.io ($i)..."
+            sleep 15
+          done
+          cargo publish -p softgpu-hsa --locked
+          cargo publish -p softgpu --locked
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          NOTES="SoftGPU ${TAG}
+
+          See CHANGELOG.md for details.
+
+          Crates:
+          - https://crates.io/crates/softgpu
+          - https://crates.io/crates/softgpu-core
+          - https://crates.io/crates/softgpu-hsa
+          "
+          gh release create "$TAG" --title "SoftGPU $TAG" --notes "$NOTES"
