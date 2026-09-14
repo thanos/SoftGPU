@@ -73,7 +73,7 @@ fn diagnostic_complete_advances_read_index_and_completion() {
 
     assert_eq!(rt.signal_load(completion).unwrap(), 0);
     assert_eq!(rt.queue_load_read_index(q).unwrap(), 1);
-    assert!(rt.dispatch_captures().len() >= 1);
+    assert!(!rt.dispatch_captures().is_empty());
     let cap = &rt.dispatch_captures()[0];
     assert_eq!(cap.kernel_object, 0xABCD);
     assert_eq!(cap.grid_size, [256, 1, 1]);

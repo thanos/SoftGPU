@@ -1489,6 +1489,6 @@ mod tests {
     fn softgpu_queue_limits_are_software_defaults() {
         assert!(SOFTGPU_QUEUE_MIN_SIZE.is_power_of_two());
         assert!(SOFTGPU_QUEUE_MAX_SIZE.is_power_of_two());
-        assert!(SOFTGPU_QUEUES_MAX > 0);
+        const { assert!(SOFTGPU_QUEUES_MAX > 0) };
     }
 }

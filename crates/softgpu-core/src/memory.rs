@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn free_unknown_pointer_fails() {
         let mut alloc = SoftGpuAllocator::new(SOFTGPU_POOL_BYTES);
-        let err = alloc.free(0x1 as *mut u8).unwrap_err();
+        let err = alloc.free(std::ptr::dangling_mut::<u8>()).unwrap_err();
         assert_eq!(err, AllocError::InvalidArgument);
     }
 }
