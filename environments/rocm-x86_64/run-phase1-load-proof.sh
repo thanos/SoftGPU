@@ -56,10 +56,10 @@ LIBDIR="$CARGO_TARGET_DIR/softgpu-hsa-stage"
 rm -rf "$LIBDIR"
 mkdir -p "$LIBDIR"
 
-SRC_SO="$(find "$CARGO_TARGET_DIR/release" -maxdepth 2 -name 'libhsa_runtime64.so' | head -1)"
+SRC_SO="$(find "$CARGO_TARGET_DIR/release" -maxdepth 2 -name 'libhsa_runtime64.so' -print -quit)"
 if [[ -z "$SRC_SO" || ! -f "$SRC_SO" ]]; then
   echo "ERROR: libhsa_runtime64.so not found under $CARGO_TARGET_DIR/release" >&2
-  find "$CARGO_TARGET_DIR/release" -name '*.so' | head -50 >&2 || true
+  find "$CARGO_TARGET_DIR/release" -name '*.so' 2>/dev/null | awk 'NR<=50' >&2 || true
   exit 1
 fi
 cp -f "$SRC_SO" "$LIBDIR/libhsa-runtime64.so"
@@ -68,7 +68,9 @@ cp -f "$SRC_SO" "$LIBDIR/libhsa_runtime64.so"
 echo "Staged SoftGPU HSA libs in $LIBDIR"
 ls -la "$LIBDIR"
 echo "== exported hsa_* symbols (sample) =="
-nm -D --defined-only "$LIBDIR/libhsa-runtime64.so" | awk '/ T hsa_/ {print; c++} END {print "(count)", c+0}' | head -40
+# Avoid `... | head` under `set -o pipefail` (SIGPIPE → exit 141).
+nm -D --defined-only "$LIBDIR/libhsa-runtime64.so" \
+  | awk '/ T hsa_/ { c++; if (c <= 40) print } END { print "(count)", c+0 }'
 
 echo "== build HIP-linked probe =="
 HIPCC="${HIPCC:-}"
