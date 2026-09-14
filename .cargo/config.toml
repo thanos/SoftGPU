@@ -1,6 +1,8 @@
-# SoftGPU: on GNU/Linux, replace rustc's anonymous cdylib version script with
-# crates/softgpu-hsa/hsa-runtime64.version (see link-cdylib.sh). Without this,
-# passing a second --version-script makes GNU ld fail.
+# SoftGPU: GNU/Linux linker for the workspace.
+# softgpu-hsa's build.rs also installs a package-local wrapper (for crates.io).
+# This config keeps whole-workspace Linux builds (CI ROCm image, act, etc.)
+# using the same ROCR_1 version-script rewrite when the package build script
+# is not the sole linker source.
 [target.x86_64-unknown-linux-gnu]
 linker = "crates/softgpu-hsa/link-cdylib.sh"
 

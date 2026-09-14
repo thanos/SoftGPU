@@ -1,0 +1,32 @@
+name: Code quality
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: softgpu-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: fmt · clippy · docs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (rust-toolchain.toml)
+        run: |
+          rustup show
+          rustup component add rustfmt clippy rust-docs
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --locked --all-targets -- -D warnings
+
+      - name: Rustdoc (deny warnings)
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --locked --no-deps

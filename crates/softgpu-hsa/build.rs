@@ -1,10 +1,22 @@
 fn main() {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let workspace_root = std::path::Path::new(&manifest_dir)
-        .join("../..")
-        .canonicalize()
-        .expect("workspace root");
-    let header_root = workspace_root.join("third_party/rocr-headers/hsa");
+    let manifest_path = std::path::Path::new(&manifest_dir);
+
+    // Prefer workspace vendored headers when present; crate-local `include/hsa`
+    // is what crates.io packages ship.
+    let header_root = {
+        let in_crate = manifest_path.join("include/hsa");
+        let in_workspace = manifest_path.join("../../third_party/rocr-headers/hsa");
+        if in_workspace.join("hsa.h").is_file() {
+            in_workspace
+                .canonicalize()
+                .expect("workspace rocr-headers")
+        } else if in_crate.join("hsa.h").is_file() {
+            in_crate
+        } else {
+            panic!("HSA headers not found under third_party/rocr-headers/hsa or include/hsa");
+        }
+    };
 
     println!("cargo:rerun-if-changed=hsa-runtime64.version");
     println!("cargo:rerun-if-changed=link-cdylib.sh");
@@ -24,7 +36,7 @@ fn main() {
     build.flag_if_supported("-fvisibility=default");
 
     for name in ["generated_stubs.c", "generated_amd_stubs.c"] {
-        let path = std::path::Path::new(&manifest_dir).join("src").join(name);
+        let path = manifest_path.join("src").join(name);
         println!("cargo:rerun-if-changed={}", path.display());
         if path.exists() {
             build.file(&path);
@@ -59,10 +71,30 @@ fn main() {
     let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
     // rustc always injects an anonymous --version-script for Linux cdylibs.
     // A second script makes GNU ld fail ("anonymous version tag cannot be
-    // combined with other version tags"). The workspace GNU/Linux linker wrapper
-    // (crates/softgpu-hsa/link-cdylib.sh via .cargo/config.toml) replaces rustc's
-    // script so SoftGPU can export all hsa_* symbols (Rust + C stubs).
+    // combined with other version tags"). Emit a package-local linker wrapper
+    // (works for crates.io builds without workspace `.cargo/config.toml`).
     if target_os == "linux" && target_env == "gnu" {
+        let version_script = manifest_path
+            .join("hsa-runtime64.version")
+            .canonicalize()
+            .expect("hsa-runtime64.version");
+        let wrapper_src = manifest_path.join("link-cdylib.sh");
+        let wrapper_dst = std::path::Path::new(&out_dir).join("link-cdylib.sh");
+        let wrapper_body = std::fs::read_to_string(&wrapper_src).expect("read link-cdylib.sh");
+        // Bake an absolute version-script path so OUT_DIR copies still work.
+        let wrapper_body = wrapper_body.replace(
+            "VERSION_SCRIPT=\"$ROOT/hsa-runtime64.version\"",
+            &format!("VERSION_SCRIPT=\"{}\"", version_script.display()),
+        );
+        std::fs::write(&wrapper_dst, wrapper_body).expect("write OUT_DIR link-cdylib.sh");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&wrapper_dst).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&wrapper_dst, perms).unwrap();
+        }
+        println!("cargo:rustc-flags=-C linker={}", wrapper_dst.display());
         println!("cargo:rustc-cdylib-link-arg=-Wl,-soname,libhsa-runtime64.so.1");
     }
 }
