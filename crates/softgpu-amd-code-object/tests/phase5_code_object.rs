@@ -68,9 +68,7 @@ fn fuzz_smoke_no_panic_bounded() {
     let mut mutations = 0u32;
     let mut state: u64 = 0xC0FFEE_u64;
     while Instant::now() < deadline && mutations < 2_000 {
-        state = state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1);
+        state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
         let mut buf = seed.clone();
         let n_flips = (state % 8) as usize + 1;
         for i in 0..n_flips {

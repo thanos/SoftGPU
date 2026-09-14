@@ -180,9 +180,7 @@ fn check_config(args: &[String]) -> Result<()> {
                         ErrorCategory::Unsupported,
                         "kernel execution is not implemented in phase 5",
                     )
-                    .with_remediation(
-                        "see docs/status.md; Phase 5 is code-object metadata only",
-                    ));
+                    .with_remediation("see docs/status.md; Phase 5 is code-object metadata only"));
                 }
             }
             other => {

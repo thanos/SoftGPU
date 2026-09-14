@@ -12,9 +12,18 @@ fn main() {
     fs::create_dir_all(&root).expect("mkdir");
     let files = [
         ("tiny-add-gfx1201.softgpu.co", fixture_tiny_add_gfx1201()),
-        ("multi-kernel-gfx1201.softgpu.co", fixture_multi_kernel_gfx1201()),
-        ("unsupported-target.softgpu.co", fixture_unsupported_target()),
-        ("unsupported-version.softgpu.co", fixture_unsupported_version()),
+        (
+            "multi-kernel-gfx1201.softgpu.co",
+            fixture_multi_kernel_gfx1201(),
+        ),
+        (
+            "unsupported-target.softgpu.co",
+            fixture_unsupported_target(),
+        ),
+        (
+            "unsupported-version.softgpu.co",
+            fixture_unsupported_version(),
+        ),
     ];
     for (name, bytes) in files {
         let path = root.join(name);

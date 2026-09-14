@@ -103,7 +103,9 @@ impl<'a> Cursor<'a> {
             }
             0xd2 => {
                 let s = self.take(4)?;
-                Ok(Value::I64(i32::from_be_bytes([s[0], s[1], s[2], s[3]]) as i64))
+                Ok(Value::I64(
+                    i32::from_be_bytes([s[0], s[1], s[2], s[3]]) as i64
+                ))
             }
             0xd3 => {
                 let s = self.take(8)?;
@@ -113,9 +115,9 @@ impl<'a> Cursor<'a> {
             }
             0xca => {
                 let s = self.take(4)?;
-                Ok(Value::F64(f32::from_bits(u32::from_be_bytes([
-                    s[0], s[1], s[2], s[3],
-                ])) as f64))
+                Ok(Value::F64(
+                    f32::from_bits(u32::from_be_bytes([s[0], s[1], s[2], s[3]])) as f64,
+                ))
             }
             0xcb => {
                 let s = self.take(8)?;
@@ -346,8 +348,14 @@ mod tests {
     #[test]
     fn round_trip_small_map() {
         let mut m = BTreeMap::new();
-        m.insert("amdhsa.version".into(), Value::Array(vec![Value::U64(1), Value::U64(2)]));
-        m.insert("amdhsa.target".into(), Value::String("amdgcn-amd-amdhsa--gfx1201".into()));
+        m.insert(
+            "amdhsa.version".into(),
+            Value::Array(vec![Value::U64(1), Value::U64(2)]),
+        );
+        m.insert(
+            "amdhsa.target".into(),
+            Value::String("amdgcn-amd-amdhsa--gfx1201".into()),
+        );
         let bytes = encode::map_from_btree(&m);
         let v = parse(&bytes).unwrap();
         match v {

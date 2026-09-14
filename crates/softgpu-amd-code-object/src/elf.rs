@@ -198,9 +198,11 @@ pub fn read_u64(data: &[u8], off: usize) -> Result<u64> {
 }
 
 pub fn slice(data: &[u8], off: usize, len: usize) -> Result<&[u8]> {
-    let end = off.checked_add(len).ok_or_else(|| CodeObjectError::Truncated {
-        detail: "slice overflow".into(),
-    })?;
+    let end = off
+        .checked_add(len)
+        .ok_or_else(|| CodeObjectError::Truncated {
+            detail: "slice overflow".into(),
+        })?;
     if end > data.len() {
         return Err(CodeObjectError::Truncated {
             detail: format!("need {end}, have {}", data.len()),

@@ -177,10 +177,7 @@ fn parse_kernel(
     })
 }
 
-fn required_string(
-    map: &std::collections::BTreeMap<String, Value>,
-    key: &str,
-) -> Result<String> {
+fn required_string(map: &std::collections::BTreeMap<String, Value>, key: &str) -> Result<String> {
     match map.get(key) {
         Some(Value::String(s)) => Ok(s.clone()),
         Some(_) => Err(CodeObjectError::Metadata {
@@ -199,10 +196,7 @@ fn optional_string(map: &std::collections::BTreeMap<String, Value>, key: &str) -
     }
 }
 
-fn optional_u32(
-    map: &std::collections::BTreeMap<String, Value>,
-    key: &str,
-) -> Result<Option<u32>> {
+fn optional_u32(map: &std::collections::BTreeMap<String, Value>, key: &str) -> Result<Option<u32>> {
     match map.get(key) {
         None => Ok(None),
         Some(v) => Ok(Some(as_u32(v, key)?)),
@@ -214,11 +208,11 @@ fn as_u32(v: &Value, ctx: &str) -> Result<u32> {
         Value::U64(n) => u32::try_from(*n).map_err(|_| CodeObjectError::Metadata {
             detail: format!("{ctx} out of u32 range"),
         }),
-        Value::I64(n) if *n >= 0 => u32::try_from(*n as u64).map_err(|_| {
-            CodeObjectError::Metadata {
+        Value::I64(n) if *n >= 0 => {
+            u32::try_from(*n as u64).map_err(|_| CodeObjectError::Metadata {
                 detail: format!("{ctx} out of u32 range"),
-            }
-        }),
+            })
+        }
         _ => Err(CodeObjectError::Metadata {
             detail: format!("{ctx} not an unsigned integer"),
         }),

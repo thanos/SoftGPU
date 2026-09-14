@@ -80,8 +80,22 @@ pub fn fixture_tiny_add_gfx1201() -> Vec<u8> {
             0,
             0,
             vec![
-                arg(Some("a"), Some("float*"), 0, 8, "global_buffer", Some("global")),
-                arg(Some("b"), Some("float*"), 8, 8, "global_buffer", Some("global")),
+                arg(
+                    Some("a"),
+                    Some("float*"),
+                    0,
+                    8,
+                    "global_buffer",
+                    Some("global"),
+                ),
+                arg(
+                    Some("b"),
+                    Some("float*"),
+                    8,
+                    8,
+                    "global_buffer",
+                    Some("global"),
+                ),
             ],
         )],
     );
@@ -102,8 +116,22 @@ pub fn fixture_multi_kernel_gfx1201() -> Vec<u8> {
                 0,
                 0,
                 vec![
-                    arg(Some("src"), Some("int*"), 0, 8, "global_buffer", Some("global")),
-                    arg(Some("dst"), Some("int*"), 8, 8, "global_buffer", Some("global")),
+                    arg(
+                        Some("src"),
+                        Some("int*"),
+                        0,
+                        8,
+                        "global_buffer",
+                        Some("global"),
+                    ),
+                    arg(
+                        Some("dst"),
+                        Some("int*"),
+                        8,
+                        8,
+                        "global_buffer",
+                        Some("global"),
+                    ),
                 ],
             ),
             kernel(
@@ -155,7 +183,10 @@ fn amdhsa_metadata(
     let mut root = BTreeMap::new();
     root.insert(
         "amdhsa.version".into(),
-        Value::Array(vec![Value::U64(u64::from(version.0)), Value::U64(u64::from(version.1))]),
+        Value::Array(vec![
+            Value::U64(u64::from(version.0)),
+            Value::U64(u64::from(version.1)),
+        ]),
     );
     root.insert("amdhsa.target".into(), Value::String(target.into()));
     root.insert(
