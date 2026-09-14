@@ -135,4 +135,7 @@ cc -O2 -I"$ROCM_PATH/include" -o "$CARGO_TARGET_DIR/softgpu-phase4-aql-probe" \
   -L"$LIBDIR" -Wl,-rpath-link,"$LIBDIR" -lhsa-runtime64
 "$CARGO_TARGET_DIR/softgpu-phase4-aql-probe"
 
-echo "== PASS: Phase 1–4 SoftGPU substitution probes =="
+echo "== Phase 5: AMD code-object metadata inspect =="
+bash "$ROOT/environments/rocm-x86_64/run-phase5-code-object.sh"
+
+echo "== PASS: Phase 1–5 SoftGPU substitution / metadata probes =="

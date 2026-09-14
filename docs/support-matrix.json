@@ -14,21 +14,21 @@
       "id": "host-macos-aarch64-rust-1.85",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 4
+      "phase": 5
     },
     {
       "id": "host-linux-x86_64-rust-1.85-no-rocm",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 4
+      "phase": 5
     },
     {
       "id": "host-linux-x86_64-rocm-hip-integration",
       "category": "host-toolchain",
       "state": "verified-integration",
-      "phase": 4,
+      "phase": 5,
       "ci_policy": "required-job-rocm-integration",
-      "notes": "Pinned ROCm 7.14.0 digest; Phase 4 AQL probe"
+      "notes": "Pinned ROCm 7.14.0 digest; Phase 5 code-object script"
     },
     {
       "id": "abi-hsa-init-shutdown-agents",
@@ -89,6 +89,13 @@
       "state": "verified-unit",
       "phase": 4,
       "notes": "validate/trace/diagnostic complete|reject; capture/replay; not kernel success"
+    },
+    {
+      "id": "abi-amd-code-object-metadata",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 5,
+      "notes": "NT_AMDGPU_METADATA gfx1201 subset; softgpu-synthetic fixtures; no ISA execution"
     },
     {
       "id": "abi-kernel-execution",

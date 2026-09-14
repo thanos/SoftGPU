@@ -108,9 +108,9 @@ Facts SoftGPU depends on must be recorded here with provenance. Secondary blogs 
 | ROCm-packaged mirror | https://rocm.docs.amd.com/projects/llvm-project/en/latest/LLVM/llvm/html/AMDGPUUsage.html |
 | Version | LLVM docs as of access date (site may show in-development version numbers) |
 | Access date | 2026-09-13 |
-| SoftGPU use | Target ID / code-object concepts for later phases; **no decoder tables vendored in Phase 0** |
+| SoftGPU use | Target ID / code-object concepts; Phase 5 metadata subset |
 | Status | normative for LLVM’s documented AMDGPU target behavior |
-| Test/artifact | Phase 5+ golden code objects vs `llvm-readelf` / `llvm-objdump` |
+| Test/artifact | Phase 5 fixtures + `softgpu inspect-code-object`; optional `llvm-readelf` |
 
 ---
 
@@ -154,9 +154,10 @@ Facts SoftGPU depends on must be recorded here with provenance. Secondary blogs 
 
 | | |
 | --- | --- |
-| Primary | System V ABI / ELF specification (use the edition cited when Phase 5 lands) |
-| SoftGPU use | Bounded code-object parsing (Phase 5); nothing in Phase 0 |
-| Status | deferred |
+| Primary | System V ABI / ELF specification (64-bit little-endian subset SoftGPU implements) |
+| SoftGPU use | Bounded code-object parsing (Phase 5): headers, `SHT_NOTE`, no full dynamic linker |
+| Status | SoftGPU-owned subset documented in `docs/code-object.md` |
+| Access date | 2026-09-14 |
 
 ---
 

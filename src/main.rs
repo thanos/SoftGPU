@@ -3,6 +3,7 @@
 use softgpu::error::{Error, ErrorCategory, Result};
 use softgpu::profile::DeviceProfile;
 use softgpu::{ACTIVE_PHASE, VERSION};
+use softgpu_amd_code_object::inspect_path;
 use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -31,7 +32,7 @@ fn run(args: Vec<String>) -> Result<()> {
     if args.is_empty() {
         return Err(Error::new(
             ErrorCategory::Config,
-            "missing command; expected one of: help, version, info, validate-profile, check-config",
+            "missing command; expected one of: help, version, info, validate-profile, check-config, inspect-code-object",
         )
         .with_remediation("run `softgpu help`"));
     }
@@ -65,6 +66,48 @@ fn run(args: Vec<String>) -> Result<()> {
                 profile.max_fidelity,
                 profile.conformance_allowed
             );
+            Ok(())
+        }
+        "inspect-code-object" => {
+            let path = args.get(1).ok_or_else(|| {
+                Error::new(
+                    ErrorCategory::Config,
+                    "inspect-code-object requires a path argument",
+                )
+                .with_remediation("usage: softgpu inspect-code-object <path-to-elf>")
+            })?;
+            let info = inspect_path(path).map_err(|e| {
+                let cat = match &e {
+                    softgpu_amd_code_object::CodeObjectError::Io(_) => ErrorCategory::Io,
+                    softgpu_amd_code_object::CodeObjectError::UnsupportedMetadataVersion {
+                        ..
+                    }
+                    | softgpu_amd_code_object::CodeObjectError::UnsupportedTarget { .. }
+                    | softgpu_amd_code_object::CodeObjectError::UnsupportedClass { .. }
+                    | softgpu_amd_code_object::CodeObjectError::UnsupportedEndian { .. }
+                    | softgpu_amd_code_object::CodeObjectError::UnsupportedElfType { .. }
+                    | softgpu_amd_code_object::CodeObjectError::UnsupportedNote { .. } => {
+                        ErrorCategory::Unsupported
+                    }
+                    softgpu_amd_code_object::CodeObjectError::NotElf
+                    | softgpu_amd_code_object::CodeObjectError::Truncated { .. }
+                    | softgpu_amd_code_object::CodeObjectError::BadHeader { .. }
+                    | softgpu_amd_code_object::CodeObjectError::SectionFault { .. }
+                    | softgpu_amd_code_object::CodeObjectError::MsgPack { .. }
+                    | softgpu_amd_code_object::CodeObjectError::Metadata { .. }
+                    | softgpu_amd_code_object::CodeObjectError::NoteNotFound
+                    | softgpu_amd_code_object::CodeObjectError::TooLarge { .. }
+                    | softgpu_amd_code_object::CodeObjectError::LimitExceeded { .. } => {
+                        ErrorCategory::Validation
+                    }
+                };
+                Error::new(cat, e.to_string())
+                    .with_remediation("see docs/code-object.md; SoftGPU parses metadata only")
+            })?;
+            let json = serde_json::to_string_pretty(&info).map_err(|e| {
+                Error::new(ErrorCategory::Internal, format!("json encode failed: {e}"))
+            })?;
+            println!("{json}");
             Ok(())
         }
         "check-config" => check_config(&args[1..]),
@@ -123,7 +166,6 @@ fn check_config(args: &[String]) -> Result<()> {
                 DeviceProfile::load_path(&path)?;
             }
             "enable_queues" => {
-                // Phase 4: queues + AQL interception (no kernel execution).
                 if !(value == "true" || value == "1" || value == "false" || value == "0") {
                     return Err(Error::new(
                         ErrorCategory::Validation,
@@ -136,10 +178,10 @@ fn check_config(args: &[String]) -> Result<()> {
                 if value == "true" || value == "1" {
                     return Err(Error::new(
                         ErrorCategory::Unsupported,
-                        "kernel execution is not implemented in phase 4",
+                        "kernel execution is not implemented in phase 5",
                     )
                     .with_remediation(
-                        "see docs/status.md; Phase 4 is AQL interception only (diagnostic complete ≠ kernel success)",
+                        "see docs/status.md; Phase 5 is code-object metadata only",
                     ));
                 }
             }
@@ -169,7 +211,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 4 (AQL intercept, diagnostic complete)
+softgpu {VERSION} — Phase 5 (AMD code-object metadata)
 
 USAGE:
   softgpu <command> [args]
@@ -180,13 +222,12 @@ COMMANDS:
   info                         Print phase, fidelity policy, and HSA adapter notes
   validate-profile <path>      Validate a device profile JSON document
   check-config KEY=VALUE...    Validate a minimal config surface (negative-test aid)
+  inspect-code-object <path>   Parse AMDGPU ELF metadata (no ISA execution)
 
 NOTES:
-  SoftGPU exports libhsa_runtime64 with Path C memory, signals, queues, and AQL
-  packet validation. FEATURE=KERNEL_DISPATCH means queue + interception only —
-  diagnostic completion is never kernel success.
-  Rename/symlink to libhsa-runtime64 for ROCr substitution on Linux.
-  See README.md and docs/status.md.
+  SoftGPU parses NT_AMDGPU_METADATA for gfx1201 targets. This is metadata
+  inspection only — not kernel execution or gfx1201 ISA emulation.
+  See README.md, docs/status.md, and docs/code-object.md.
 "
     );
 }
@@ -200,6 +241,7 @@ fn print_info() {
     println!("agent_discovery=one-virtual-gpu");
     println!("feature=KERNEL_DISPATCH (queue+AQL intercept; no kernel execution)");
     println!("aql=diagnostic_complete_no_execution");
+    println!("code_object=amdgpu_metadata_gfx1201_subset");
     println!("memory=path-c-regions-and-amd-pools");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");

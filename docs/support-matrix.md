@@ -8,7 +8,7 @@ Allowed cell states: `implemented-unverified`, `verified-unit`, `verified-integr
 
 | Item | State | Notes |
 | --- | --- | --- |
-| macOS Apple Silicon + Rust 1.85 (`cargo test --workspace --locked`) | `verified-unit` | Phase 4 fast loop |
+| macOS Apple Silicon + Rust 1.85 (`cargo test --workspace --locked`) | `verified-unit` | Phase 5 fast loop |
 | Linux x86-64 + Rust 1.85 (no ROCm) | `verified-unit` | CI core job |
 | Linux x86-64 + pinned ROCm HIP/ROCr integration | `verified-integration` (CI) | Required `rocm-integration`; ROCm **7.14.0** |
 
@@ -20,12 +20,8 @@ Allowed cell states: `implemented-unverified`, `verified-unit`, `verified-integr
 | Layout probe vs vendored `hsa.h` | `verified-unit` | `tools/hsa-layout-probe` |
 | HIP-linked SoftGPU load proof (anti-system-ROCr) | `verified-integration` | CI harness |
 | Agent discovery (virtual GPU, `KERNEL_DISPATCH`) | `verified-unit` (+ CI) | queue + AQL intercept claim |
-| Advertised agent field provenance | `verified-unit` | `tests/advertised_fields.rs` |
-| Path C regions + AMD pools allocate/free | `verified-unit` (+ CI probe) | SoftGPU host memory |
-| Signals create/wait/store | `verified-unit` | CPU atomics |
-| Queue create/destroy/indexes/doorbell observe | `verified-unit` (+ CI probe) | Observe-once |
-| Phase 3 charter stress (wraparound, cancel, caps) | `verified-unit` | `tests/phase3_charter.rs` |
-| AQL validate + diagnostic complete/reject + replay | `verified-unit` (+ CI probe) | `phase4_aql` + `docs/aql-diagnostic-contract.md` |
+| Path C memory / signals / queues / AQL diagnostic | `verified-unit` (+ CI) | Phases 3–4 |
+| AMDGPU code-object metadata (`gfx1201` subset) | `verified-unit` (+ CI script) | `softgpu-amd-code-object`; see `docs/code-object.md` |
 | Kernel execution / gfx1201 ISA | `unsupported` | Phase 6+ |
 
 ## Profiles

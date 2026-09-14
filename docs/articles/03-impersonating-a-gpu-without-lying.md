@@ -67,7 +67,7 @@ Traces record profile + fidelity on init, plus memory/queue/doorbell events.
 
 - Wavefront size query → invalid argument (not a guessed 32/64)
 - Handle after shutdown/re-init → invalid agent
-- Packet execution / code objects → still unsupported (Phase 4)
+- Packet execution / code objects → Phase 4–5 (metadata inspect; still no ISA exec)
 
 ## References
 

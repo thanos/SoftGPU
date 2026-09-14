@@ -9,18 +9,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
-- Phase 4: AQL packet header/type parser, kernel-dispatch validation, minimal barriers, normalized `DispatchDescriptor`, capture/replay, and documented diagnostic complete/reject contract ([`docs/aql-diagnostic-contract.md`](docs/aql-diagnostic-contract.md)).
-- SoftGPU-native Phase 4 tests and ROCm `softgpu-phase4-aql-probe` (SoftGPU-controlled golden packet).
-- Article 5: HSA/AQL dispatch end to end.
+- Phase 5: `softgpu-amd-code-object` bounded ELF64 + MessagePack AMDHSA metadata parser (`NT_AMDGPU_METADATA`), `gfx1201` target gate, `softgpu inspect-code-object`, synthetic fixtures, fuzz smoke floor, Article 6, [`docs/code-object.md`](docs/code-object.md).
+- ROCm helper `environments/rocm-x86_64/run-phase5-code-object.sh` (synthetic gate + optional hipcc/llvm-readelf).
 
 ### Changed
 
-- Doorbell observe path validates packets, may advance HSA `read_index` / invalidate slots, and may store completion `0` under `diagnostic_complete_no_execution` — never claimed as kernel success.
-- `ACTIVE_PHASE` → `phase-4`; status/support-matrix/README honesty updated.
-
-### Notes (Phase 3 retained)
-
-- Phase 3: Path C memory, signals, queue create/observe, charter stress, Article 4.
+- `ACTIVE_PHASE` → `phase-5`; status/support-matrix/README honesty updated.
+- Phase 4 AQL diagnostic interception retained (completion ≠ kernel success).
 
 ## [0.1.0] — 2026-09-14
 

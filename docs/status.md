@@ -10,47 +10,39 @@
 | Virtual GPU agent + advertised-field provenance | host tests | **ABI** | `verified-unit` |
 | SoftGPU HSA cdylib + fail-closed stubs + `hsa_system_get_info` subset | host / ROCm CI | **ABI** | unit + required CI |
 | HIP-linked load proof (anti-system-ROCr, `ROCR_1`) | pinned ROCm 7.14.0 CI | **ABI** | required `rocm-integration` |
-| HIP-linked HSA discovery (`FEATURE=KERNEL_DISPATCH`) | pinned ROCm 7.14.0 CI | **ABI** | discovery probe |
-| Path C memory, signals, queue create/observe | host + ROCm CI | **ABI** | unit + Phase 3 probe |
-| AQL parse/validate + diagnostic complete/reject + capture/replay | host + ROCm CI | **ABI/Protocol** | `phase4_aql` + Phase 4 probe |
+| Path C memory, signals, queues, AQL diagnostic intercept | host + ROCm CI | **ABI/Protocol** | Phase 3–4 probes |
+| AMDGPU ELF / `NT_AMDGPU_METADATA` inspect (`gfx1201` subset) | host + ROCm CI | **ABI** | `phase5_code_object` + Phase 5 script |
 | Kernel execution / gfx1201 ISA | — | — | **unsupported** (Phase 6+) |
 
 ## Active phase
 
-**Phase 4** — AQL dispatch interception: validate kernel-dispatch (and minimal
-barriers), trace normalized descriptors, experimental diagnostic completion
-(**not** kernel success), packet capture/replay. See
-[`docs/aql-diagnostic-contract.md`](aql-diagnostic-contract.md) and Article 5.
+**Phase 5** — AMD code-object and kernel metadata handling: bounded ELF64 note
+walker, MessagePack AMDHSA metadata for `amdhsa.version` `[1,0]`–`[1,2]` and
+targets containing `gfx1201`, inspection CLI, synthetic fixtures + optional
+official `hipcc` cross-check. See [`docs/code-object.md`](code-object.md) and
+Article 6.
 
 ## Acceptance notes
 
 | Gate | Status |
 | --- | --- |
-| Phase 0 | **Met** |
-| Phase 1 HIP load + anti-system-ROCr | **Met** (required `rocm-integration` green) |
-| Phase 2: HIP userspace reaches SoftGPU agent | **Met** |
-| Phase 3: Path C memory + signals + queue observe | **Met** |
-| Phase 3 charter: observe-once, cancel-on-destroy, stress, Article 4 | **Met** |
-| Phase 4: AQL validate + diagnostic contract + capture/replay + Article 5 | **Met** (host unit; SoftGPU-controlled ROCm probe) |
-| Advertised fields have provenance + tests | **Met** |
-| Unsupported attrs / handle misuse / traces | **Met** |
+| Phase 0–4 | **Met** (see prior revisions) |
+| Phase 5: metadata parse + fail-closed version/target + fuzz floor + Article 6 | **Met** (host unit; SoftGPU-synthetic fixtures; ROCm optional hipcc note) |
+| Kernel ISA execution | **Not started** (Phase 6+) |
 
 ### Controlled subset (honest)
 
-SoftGPU advertises `HSA_AGENT_FEATURE_KERNEL_DISPATCH` for **queue ABI + AQL
-interception**. SoftGPU may store a completion signal under the documented
-`diagnostic_complete_no_execution` contract. That is **never** kernel launch
-success and does **not** claim guaranteed `hipGetDeviceCount > 0`. Allocations
-remain SoftGPU host (CPU) software memory with provenance `softgpu-software`.
+SoftGPU inspects AMDGPU metadata notes only. Synthetic fixtures are SoftGPU-built
+ELF+msgpack with provenance `softgpu-synthetic`. Finding kernels is **not**
+kernel execution. `FEATURE=KERNEL_DISPATCH` remains queue + AQL intercept.
 
 ## Next acceptance gate
 
-Phase 5 — AMD code-object and kernel metadata handling.
+Phase 6 — Minimal vendor-neutral functional execution (disclosed input path).
 
 ## High-risk assumptions remaining
 
-1. Stub surface remains enough for HIP/HSA libraries to load under SoftGPU substitution (ELF version node **`ROCR_1`**).
-2. `TIMESTAMP_FREQUENCY=1e9` is an explicit SoftGPU software-clock provisional, not hardware.
+1. Stub surface remains enough for HIP/HSA load (`ROCR_1`).
+2. Fat HIP host binaries may embed code objects in layouts SoftGPU does not yet unpack; standalone / SoftGPU-synthetic ELF remains the primary metadata gate.
 3. Numeric R9700 limits remain unknown.
-4. Real HIP launches may still need more SoftGPU surface before a tiny HIP kernel reaches SoftGPU AQL; Phase 4 acceptance uses a SoftGPU-controlled golden packet when HIP is not ready.
-5. Barrier packets accept type/completion only; dependency signals are unchecked.
+4. Only `gfx1201` targets are accepted in Phase 5.
