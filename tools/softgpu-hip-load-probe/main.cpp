@@ -81,7 +81,8 @@ int main(void) {
   fprintf(stderr, "softgpu-hip-load-probe: SoftGPU HSA resolved to %s\n", st.softgpu_path);
 
   /* SoftGPU mapped without system ROCr is the Phase 1 gate. HIP init is
-   * diagnostic only: FEATURE=0 may yield errors; do not require success. */
+   * diagnostic only: KERNEL_DISPATCH is queue ABI only; hip device count
+   * success is not required for SoftGPU Phase 3 Met. */
   hipError_t err = hipInit(0);
   fprintf(stderr, "softgpu-hip-load-probe: hipInit -> %d (%s)\n", (int)err,
           hipGetErrorString(err));

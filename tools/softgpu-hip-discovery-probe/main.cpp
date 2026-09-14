@@ -1,8 +1,9 @@
-/* SoftGPU Phase 2 HIP-linked agent discovery probe.
+/* SoftGPU Phase 3 HIP-linked agent discovery probe.
  *
  * Controlled subset: the process is HIP-linked (loads SoftGPU as HSA), then
- * discovers the virtual GPU via HSA iterate/get_info. FEATURE=0 means
- * hipGetDeviceCount may be 0; that is documented, not a silent lie.
+ * discovers the virtual GPU via HSA iterate/get_info. FEATURE includes
+ * KERNEL_DISPATCH for queue ABI only — SoftGPU does not claim packet
+ * execution or guaranteed hipGetDeviceCount > 0.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +14,7 @@
 #if defined(__linux__)
 #include <link.h>
 #else
-#error "Phase 2 discovery probe requires Linux"
+#error "Phase 3 discovery probe requires Linux"
 #endif
 
 struct check_state {
@@ -84,7 +85,7 @@ int main(void) {
     return 1;
   }
 
-  /* HIP touch — may fail or report 0 devices under FEATURE=0. */
+  /* HIP touch — may fail or report 0 devices; not required for Phase 3 Met. */
   hipError_t herr = hipInit(0);
   int hip_devices = -1;
   hipError_t hcnt = hipGetDeviceCount(&hip_devices);
@@ -104,17 +105,20 @@ int main(void) {
     hsa_shut_down();
     return 1;
   }
-  if (ag.feature != 0) {
-    fprintf(stderr, "FAIL: FEATURE=%u (expected 0; no dispatch claim)\n", ag.feature);
+  if ((ag.feature & HSA_AGENT_FEATURE_KERNEL_DISPATCH) == 0) {
+    fprintf(stderr,
+            "FAIL: FEATURE=%u (expected KERNEL_DISPATCH for Phase 3 queue ABI)\n",
+            ag.feature);
     hsa_shut_down();
     return 1;
   }
 
-  fprintf(stderr, "softgpu-hip-discovery: gpu name='%s' vendor='%s' feature=0\n",
-          ag.name, ag.vendor);
-  printf("softgpu-hip-discovery: PASS fidelity=abi phase=2 agent='%s'\n", ag.name);
+  fprintf(stderr,
+          "softgpu-hip-discovery: gpu name='%s' vendor='%s' feature=%u\n",
+          ag.name, ag.vendor, ag.feature);
+  printf("softgpu-hip-discovery: PASS fidelity=abi phase=3 agent='%s'\n", ag.name);
   printf("softgpu-hip-discovery: controlled_subset=hsa_iterate_from_hip_linked_process\n");
-  printf("softgpu-hip-discovery: note=FEATURE=0 so hip device count may be zero\n");
+  printf("softgpu-hip-discovery: note=KERNEL_DISPATCH_is_queue_ABI_only_no_packet_execution\n");
 
   hsa_shut_down();
   return 0;

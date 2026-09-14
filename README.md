@@ -11,7 +11,7 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **v0.1.0 — Runtime foundation (Phases 0–2):** SoftGPU ships a minimal `libhsa_runtime64`, virtual-agent discovery (`FEATURE=0`), and a HIP-linked integration harness for pinned ROCm **7.14.0**. Queues/AQL/kernels remain unsupported. See [docs/status.md](docs/status.md) and [CHANGELOG.md](CHANGELOG.md).
+> **Active — Phase 3:** Path C memory (HSA regions + AMD pools), signals, and queue create/observe with `FEATURE=KERNEL_DISPATCH` for **queue ABI only** (no AQL execution). Phases 0–2 remain the v0.1.0 foundation. See [docs/status.md](docs/status.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## What SoftGPU is (and is not)
 
@@ -112,8 +112,9 @@ Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/c
 - [Unsafe / FFI policy](docs/unsafe-ffi-policy.md)
 - [ROCm x86_64 env](environments/rocm-x86_64/README.md) — pinned image; local CI via Docker or Apple Container
 - [ADR-0001](docs/adr/0001-rocr-hsa-substitution-boundary.md) · [ADR-0002](docs/adr/0002-generation-safe-handles.md)
-- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md)
+- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md)
 - [Article 19 (draft)](docs/articles/19-why-rust-for-software-gpu.md)
+- [Phase 3 concurrency invariants](docs/concurrency-phase3.md)
 
 ## License
 

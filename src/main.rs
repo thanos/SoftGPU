@@ -123,12 +123,22 @@ fn check_config(args: &[String]) -> Result<()> {
                 DeviceProfile::load_path(&path)?;
             }
             "enable_queues" => {
+                // Phase 3: queue create/observe is implemented (no packet execution).
+                if !(value == "true" || value == "1" || value == "false" || value == "0") {
+                    return Err(Error::new(
+                        ErrorCategory::Validation,
+                        format!("invalid enable_queues '{value}'"),
+                    )
+                    .with_remediation("allowed values: true, false, 1, 0"));
+                }
+            }
+            "enable_execution" => {
                 if value == "true" || value == "1" {
                     return Err(Error::new(
                         ErrorCategory::Unsupported,
-                        "queues are not implemented in phase 2",
+                        "AQL packet execution is not implemented in phase 3",
                     )
-                    .with_remediation("see docs/status.md; queue work begins in phase 3"));
+                    .with_remediation("see docs/status.md; execution begins in phase 4"));
                 }
             }
             other => {
@@ -136,7 +146,9 @@ fn check_config(args: &[String]) -> Result<()> {
                     ErrorCategory::Config,
                     format!("unknown config key '{other}'"),
                 )
-                .with_remediation("supported keys: log_level, profile, enable_queues"));
+                .with_remediation(
+                    "supported keys: log_level, profile, enable_queues, enable_execution",
+                ));
             }
         }
     }
@@ -155,7 +167,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 2 (virtual agent discovery)
+softgpu {VERSION} — Phase 3 (memory, signals, queue observe)
 
 USAGE:
   softgpu <command> [args]
@@ -168,9 +180,9 @@ COMMANDS:
   check-config KEY=VALUE...    Validate a minimal config surface (negative-test aid)
 
 NOTES:
-  SoftGPU exports a minimal libhsa_runtime64 (init/shutdown/agent discovery).
+  SoftGPU exports libhsa_runtime64 with Path C memory, signals, and queue ABI.
+  FEATURE=KERNEL_DISPATCH means queue create/observe only — not kernel execution.
   Rename/symlink to libhsa-runtime64 for ROCr substitution on Linux.
-  Queues, AQL, and kernel execution remain unsupported.
   See README.md and docs/status.md.
 "
     );
@@ -181,9 +193,10 @@ fn print_info() {
     println!("version={VERSION}");
     println!("active_phase={ACTIVE_PHASE}");
     println!("fidelity_policy=named-levels-required");
-    println!("rocr_hsa_library=softgpu-hsa (init/shutdown/iterate_agents/agent_get_info + fail-closed stubs)");
+    println!("rocr_hsa_library=softgpu-hsa (memory/signals/queues + fail-closed stubs)");
     println!("agent_discovery=one-virtual-gpu");
-    println!("dispatch_features=none");
+    println!("feature=KERNEL_DISPATCH (queue ABI observe only; no packet execution)");
+    println!("memory=path-c-regions-and-amd-pools");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");
     println!("conformance_claims=none");

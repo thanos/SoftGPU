@@ -62,53 +62,6 @@ hsa_status_t HSA_API hsa_agent_major_extension_supported(
 }
 
 /* auto-stub */
-hsa_status_t HSA_API hsa_signal_create(
-    hsa_signal_value_t initial_value,
-    uint32_t num_consumers,
-    const hsa_agent_t *consumers,
-    hsa_signal_t *signal)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_signal_destroy(
-    hsa_signal_t signal)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_signal_value_t HSA_API hsa_signal_load_scacquire(
-    hsa_signal_t signal)
-{
-  return (hsa_signal_value_t)0;
-}
-
-/* auto-stub */
-hsa_signal_value_t HSA_API hsa_signal_load_relaxed(
-    hsa_signal_t signal)
-{
-  return (hsa_signal_value_t)0;
-}
-
-/* auto-stub */
-void HSA_API hsa_signal_store_relaxed(
-    hsa_signal_t signal,
-    hsa_signal_value_t value)
-{
-  /* SoftGPU: unsupported void API */
-}
-
-/* auto-stub */
-void HSA_API hsa_signal_store_screlease(
-    hsa_signal_t signal,
-    hsa_signal_value_t value)
-{
-  /* SoftGPU: unsupported void API */
-}
-
-/* auto-stub */
 void HSA_API hsa_signal_silent_store_relaxed(
     hsa_signal_t signal,
     hsa_signal_value_t value)
@@ -353,28 +306,6 @@ void HSA_API hsa_signal_xor_screlease(
 }
 
 /* auto-stub */
-hsa_signal_value_t HSA_API hsa_signal_wait_scacquire(
-    hsa_signal_t signal,
-    hsa_signal_condition_t condition,
-    hsa_signal_value_t compare_value,
-    uint64_t timeout_hint,
-    hsa_wait_state_t wait_state_hint)
-{
-  return (hsa_signal_value_t)0;
-}
-
-/* auto-stub */
-hsa_signal_value_t HSA_API hsa_signal_wait_relaxed(
-    hsa_signal_t signal,
-    hsa_signal_condition_t condition,
-    hsa_signal_value_t compare_value,
-    uint64_t timeout_hint,
-    hsa_wait_state_t wait_state_hint)
-{
-  return (hsa_signal_value_t)0;
-}
-
-/* auto-stub */
 hsa_status_t HSA_API hsa_signal_group_create(
     uint32_t num_signals,
     const hsa_signal_t *signals,
@@ -417,20 +348,6 @@ hsa_status_t HSA_API hsa_signal_group_wait_any_relaxed(
 }
 
 /* auto-stub */
-hsa_status_t HSA_API hsa_queue_create(
-    hsa_agent_t agent,
-    uint32_t size,
-    hsa_queue_type32_t type,
-    void (*callback)(hsa_status_t status, hsa_queue_t *source, void *data),
-    void *data,
-    uint32_t private_segment_size,
-    uint32_t group_segment_size,
-    hsa_queue_t **queue)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
 hsa_status_t HSA_API hsa_soft_queue_create(
     hsa_region_t region,
     uint32_t size,
@@ -443,61 +360,10 @@ hsa_status_t HSA_API hsa_soft_queue_create(
 }
 
 /* auto-stub */
-hsa_status_t HSA_API hsa_queue_destroy(
-    hsa_queue_t *queue)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
 hsa_status_t HSA_API hsa_queue_inactivate(
     hsa_queue_t *queue)
 {
   return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-uint64_t HSA_API hsa_queue_load_read_index_scacquire(
-    const hsa_queue_t *queue)
-{
-  return (uint64_t)0;
-}
-
-/* auto-stub */
-uint64_t HSA_API hsa_queue_load_read_index_relaxed(
-    const hsa_queue_t *queue)
-{
-  return (uint64_t)0;
-}
-
-/* auto-stub */
-uint64_t HSA_API hsa_queue_load_write_index_scacquire(
-    const hsa_queue_t *queue)
-{
-  return (uint64_t)0;
-}
-
-/* auto-stub */
-uint64_t HSA_API hsa_queue_load_write_index_relaxed(
-    const hsa_queue_t *queue)
-{
-  return (uint64_t)0;
-}
-
-/* auto-stub */
-void HSA_API hsa_queue_store_write_index_relaxed(
-    const hsa_queue_t *queue,
-    uint64_t value)
-{
-  /* SoftGPU: unsupported void API */
-}
-
-/* auto-stub */
-void HSA_API hsa_queue_store_write_index_screlease(
-    const hsa_queue_t *queue,
-    uint64_t value)
-{
-  /* SoftGPU: unsupported void API */
 }
 
 /* auto-stub */
@@ -566,63 +432,6 @@ uint64_t HSA_API hsa_queue_add_write_index_screlease(
     uint64_t value)
 {
   return (uint64_t)0;
-}
-
-/* auto-stub */
-void HSA_API hsa_queue_store_read_index_relaxed(
-    const hsa_queue_t *queue,
-    uint64_t value)
-{
-  /* SoftGPU: unsupported void API */
-}
-
-/* auto-stub */
-void HSA_API hsa_queue_store_read_index_screlease(
-   const hsa_queue_t *queue,
-   uint64_t value)
-{
-  /* SoftGPU: unsupported void API */
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_region_get_info(
-    hsa_region_t region,
-    hsa_region_info_t attribute,
-    void* value)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_agent_iterate_regions(
-    hsa_agent_t agent,
-    hsa_status_t (*callback)(hsa_region_t region, void* data),
-    void* data)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_memory_allocate(hsa_region_t region,
-    size_t size,
-    void** ptr)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_memory_free(void* ptr)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_memory_copy(
-    void *dst,
-    const void *src,
-    size_t size)
-{
-  return HSA_STATUS_ERROR;
 }
 
 /* auto-stub */
@@ -881,4 +690,4 @@ hsa_status_t HSA_API hsa_executable_iterate_program_symbols(
   return HSA_STATUS_ERROR;
 }
 
-/* generated stub count: 101 */
+/* generated stub count: 78 */

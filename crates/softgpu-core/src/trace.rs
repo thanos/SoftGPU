@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Stable event categories for Phase 2.
+/// Stable event categories for SoftGPU runtime observation.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TraceEvent {
@@ -34,6 +34,59 @@ pub enum TraceEvent {
         agent_handle: u64,
         attribute: String,
         outcome: String,
+    },
+    MemoryAllocate {
+        seq: u64,
+        space_handle: u64,
+        size: usize,
+        ptr: u64,
+        outcome: String,
+    },
+    MemoryFree {
+        seq: u64,
+        ptr: u64,
+        outcome: String,
+    },
+    SignalCreate {
+        seq: u64,
+        signal_handle: u64,
+        initial: i64,
+    },
+    SignalDestroy {
+        seq: u64,
+        signal_handle: u64,
+    },
+    QueueCreate {
+        seq: u64,
+        queue_id: u64,
+        size: u32,
+        agent_handle: u64,
+    },
+    QueueDestroy {
+        seq: u64,
+        queue_id: u64,
+    },
+    QueueDoorbell {
+        seq: u64,
+        queue_id: u64,
+        value: i64,
+    },
+    QueueIndexStore {
+        seq: u64,
+        queue_id: u64,
+        which: String,
+        value: u64,
+    },
+    PacketObserved {
+        seq: u64,
+        queue_id: u64,
+        packet_index: u64,
+        packet_type: u16,
+    },
+    PacketValidateFailed {
+        seq: u64,
+        queue_id: u64,
+        detail: String,
     },
     Unsupported {
         seq: u64,
