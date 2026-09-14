@@ -6,6 +6,7 @@
  *   - HSA read_index advanced
  * Does not execute kernels and does not claim HIP launch success.
  */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -3,6 +3,7 @@
  * Exercises Path C memory and queue create/observe under SoftGPU substitution.
  * Does not execute AQL packets.
  */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
