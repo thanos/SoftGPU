@@ -10,9 +10,6 @@ homepage.workspace = true
 readme = "../../README.md"
 keywords = ["gpu", "hsa", "rocr", "hip", "rocm"]
 categories = ["development-tools", "emulators", "api-bindings"]
-# Allows build.rs to emit `-C linker=` so published crates get ROCR_1 without
-# relying on the workspace `.cargo/config.toml`.
-links = "softgpu_hsa"
 
 [lib]
 # Cargo forbids hyphens in lib names. Build emits libhsa_runtime64.{so,dylib};

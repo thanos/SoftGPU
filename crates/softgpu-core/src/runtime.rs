@@ -303,8 +303,7 @@ pub fn ensure_default_runtime() -> Result<(), Error> {
     Ok(())
 }
 
-const DEFAULT_GENERIC_PROFILE: &str =
-    include_str!("../embedded/softgpu-generic-v0.json");
+const DEFAULT_GENERIC_PROFILE: &str = include_str!("../embedded/softgpu-generic-v0.json");
 
 /// Access the global runtime under the process mutex.
 pub fn with_runtime<R>(f: impl FnOnce(&mut Runtime) -> R) -> Result<R, RuntimeError> {

@@ -100,6 +100,8 @@ docs/                  # architecture, status, sources, ADRs, articles
 
 **Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.1.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
 
+Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/config.toml) linker wrapper (or an equivalent) so the cdylib advertises ELF version **`ROCR_1`** for HIP. Cloning this repo already includes that config.
+
 ## Documentation
 
 - [Status](docs/status.md) — what works, active phase, next gate

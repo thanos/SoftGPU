@@ -8,9 +8,7 @@ fn main() {
         let in_crate = manifest_path.join("include/hsa");
         let in_workspace = manifest_path.join("../../third_party/rocr-headers/hsa");
         if in_workspace.join("hsa.h").is_file() {
-            in_workspace
-                .canonicalize()
-                .expect("workspace rocr-headers")
+            in_workspace.canonicalize().expect("workspace rocr-headers")
         } else if in_crate.join("hsa.h").is_file() {
             in_crate
         } else {
@@ -70,31 +68,11 @@ fn main() {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
     // rustc always injects an anonymous --version-script for Linux cdylibs.
-    // A second script makes GNU ld fail ("anonymous version tag cannot be
-    // combined with other version tags"). Emit a package-local linker wrapper
-    // (works for crates.io builds without workspace `.cargo/config.toml`).
+    // Combining a second script fails with GNU ld. SoftGPU's rewrite lives in
+    // `.cargo/config.toml` → crates/softgpu-hsa/link-cdylib.sh (workspace/CI).
+    // Do not emit `cargo:rustc-flags=-C linker=...` here: Cargo rejects it
+    // ("Only -l and -L flags are allowed") even with a `links` key.
     if target_os == "linux" && target_env == "gnu" {
-        let version_script = manifest_path
-            .join("hsa-runtime64.version")
-            .canonicalize()
-            .expect("hsa-runtime64.version");
-        let wrapper_src = manifest_path.join("link-cdylib.sh");
-        let wrapper_dst = std::path::Path::new(&out_dir).join("link-cdylib.sh");
-        let wrapper_body = std::fs::read_to_string(&wrapper_src).expect("read link-cdylib.sh");
-        // Bake an absolute version-script path so OUT_DIR copies still work.
-        let wrapper_body = wrapper_body.replace(
-            "VERSION_SCRIPT=\"$ROOT/hsa-runtime64.version\"",
-            &format!("VERSION_SCRIPT=\"{}\"", version_script.display()),
-        );
-        std::fs::write(&wrapper_dst, wrapper_body).expect("write OUT_DIR link-cdylib.sh");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&wrapper_dst).unwrap().permissions();
-            perms.set_mode(0o755);
-            std::fs::set_permissions(&wrapper_dst, perms).unwrap();
-        }
-        println!("cargo:rustc-flags=-C linker={}", wrapper_dst.display());
         println!("cargo:rustc-cdylib-link-arg=-Wl,-soname,libhsa-runtime64.so.1");
     }
 }

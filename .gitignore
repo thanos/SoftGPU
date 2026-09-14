@@ -8,3 +8,7 @@
 .vscode/
 # Keep Cargo.lock for the application binary crate.
 /baoulo/
+lcov.info
+*.profraw
+default.profraw
+/coverage/
