@@ -28,12 +28,68 @@ The script:
 
 No kernels are launched.
 
+## Local CI (match GitHub Actions)
 
-## Docker
+The `rocm-integration` job runs the pinned image as **`linux/amd64`**. On Apple Silicon that means Rosetta/QEMU translation — expect it to be slower than a native x86_64 host. GitHub Actions still uses Docker on Linux runners; the commands below are for local reproduction only.
+
+Shared setup (repo root):
 
 ```bash
-docker run --rm --platform linux/amd64 \
-  -v "$PWD:/src" -w /src \
-  rocm/dev-ubuntu-24.04@sha256:439edaa8f0c4be4a3728e528f87b8a2ea1f051f34cf10b27caa4bd94f562eda7 \
+source environments/rocm-x86_64/PINNED
+chmod +x environments/rocm-x86_64/ci-entrypoint.sh \
+         environments/rocm-x86_64/run-phase1-load-proof.sh \
+         crates/softgpu-hsa/link-cdylib.sh
+```
+
+`CARGO_HOME` / `RUSTUP_HOME` under `/tmp` match CI so rustup does not write into a missing `~/.cargo` inside the container.
+
+### Docker
+
+Closest drop-in match to [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml):
+
+```bash
+docker pull "${ROCM_IMAGE}@${ROCM_IMAGE_DIGEST}"
+
+docker run --rm \
+  --platform linux/amd64 \
+  -v "$PWD:/src:rw" \
+  -w /src \
+  -e CARGO_HOME=/tmp/cargo \
+  -e RUSTUP_HOME=/tmp/rustup \
+  "${ROCM_IMAGE}@${ROCM_IMAGE_DIGEST}" \
   bash environments/rocm-x86_64/ci-entrypoint.sh
 ```
+
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or another Docker Engine) with amd64 emulation enabled on Apple Silicon.
+
+### Apple Container
+
+[Apple’s `container` CLI](https://github.com/apple/container) runs OCI Linux images in lightweight VMs on Apple Silicon (macOS 26 recommended). Install, then start the system once:
+
+```bash
+brew install container
+container system kernel set --recommended   # first-time setup
+container system start
+```
+
+Then:
+
+```bash
+container pull --platform linux/amd64 "${ROCM_IMAGE}@${ROCM_IMAGE_DIGEST}"
+
+container run --rm \
+  --platform linux/amd64 \
+  -v "$PWD:/src" \
+  -w /src \
+  -e CARGO_HOME=/tmp/cargo \
+  -e RUSTUP_HOME=/tmp/rustup \
+  "${ROCM_IMAGE}@${ROCM_IMAGE_DIGEST}" \
+  bash environments/rocm-x86_64/ci-entrypoint.sh
+```
+
+Notes:
+
+- `-v` / `-w` / `-e` mirror Docker; `--mount type=bind,source=...,target=/src` also works if you prefer explicit bind mounts.
+- amd64 ROCm images run under **Rosetta** on Apple Silicon (`container system property` documents `build.rosetta`).
+- Flag names can differ slightly by `container` version — use `container run --help` if a flag is rejected.
+- This does **not** replace CI’s Docker path on `ubuntu-24.04`; it only helps you reproduce the gate locally without Docker Desktop.

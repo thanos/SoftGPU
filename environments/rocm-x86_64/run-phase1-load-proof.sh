@@ -72,6 +72,17 @@ echo "== exported hsa_* symbols (sample) =="
 nm -D --defined-only "$LIBDIR/libhsa-runtime64.so" \
   | awk '/ T hsa_/ { c++; if (c <= 40) print } END { print "(count)", c+0 }'
 
+echo "== verify ELF version node ROCR_1 (required by libamdhip64) =="
+if ! nm -D --defined-only "$LIBDIR/libhsa-runtime64.so" | grep -q '@@ROCR_1'; then
+  echo "ERROR: SoftGPU libhsa-runtime64.so lacks symbol version ROCR_1" >&2
+  echo "HIP will fail at load with: version \`ROCR_1' not found" >&2
+  if command -v readelf >/dev/null 2>&1; then
+    readelf -V "$LIBDIR/libhsa-runtime64.so" >&2 || true
+  fi
+  exit 1
+fi
+echo "ok: found @@ROCR_1 on exported hsa_* symbols"
+
 echo "== build HIP-linked probe =="
 HIPCC="${HIPCC:-}"
 if [[ -z "$HIPCC" ]]; then

@@ -37,6 +37,6 @@ Phase 3 — memory regions/pools, signals, and queue mechanics (only after CI re
 
 ## High-risk assumptions remaining
 
-1. Stub surface is enough for HIP/HSA libraries to load under SoftGPU substitution.
+1. Stub surface is enough for HIP/HSA libraries to load under SoftGPU substitution (ELF version node must be **`ROCR_1`**, matching AMD HIP’s requirement on `libhsa-runtime64`).
 2. `TIMESTAMP_FREQUENCY=1e9` is an explicit SoftGPU software-clock provisional, not hardware.
 3. Numeric R9700 limits remain unknown.

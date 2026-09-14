@@ -60,13 +60,15 @@ cargo run --locked -- info
 cargo run --locked -- validate-profile profiles/softgpu-generic-v0.json
 cargo build -p softgpu-hsa --locked
 cc -I third_party/rocr-headers -o target/hsa-layout-probe tools/hsa-layout-probe/probe.c && ./target/hsa-layout-probe
-# Linux x86_64 + ROCm 7.14 (CI / docker):
-#   bash environments/rocm-x86_64/ci-entrypoint.sh
+# Linux x86_64 + ROCm 7.14 load proof (CI): see environments/rocm-x86_64/README.md
+# (Docker or Apple Container on Apple Silicon; native script on Linux x86_64)
 cargo fmt --check
 cargo clippy --workspace --locked --all-targets -- -D warnings
 ```
 
 Cargo emits `libhsa_runtime64`. For ROCr-style substitution on Linux, the Phase 1 script stages `libhsa-runtime64.so`.
+
+ROCm integration details and local reproduction (Docker / Apple Container): [environments/rocm-x86_64/README.md](environments/rocm-x86_64/README.md).
 
 ## Repository map
 
@@ -87,6 +89,7 @@ docs/                  # architecture, status, sources, ADRs, articles
 - [Support matrix](docs/support-matrix.md)
 - [Sources ledger](docs/sources.md)
 - [Unsafe / FFI policy](docs/unsafe-ffi-policy.md)
+- [ROCm x86_64 env](environments/rocm-x86_64/README.md) — pinned image; local CI via Docker or Apple Container
 - [ADR-0001](docs/adr/0001-rocr-hsa-substitution-boundary.md) · [ADR-0002](docs/adr/0002-generation-safe-handles.md)
 - [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md)
 - [Article 19 (draft)](docs/articles/19-why-rust-for-software-gpu.md)
