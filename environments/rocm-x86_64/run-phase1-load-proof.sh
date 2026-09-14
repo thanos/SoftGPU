@@ -13,6 +13,9 @@ fi
 
 : "${ROCM_PATH:=/opt/rocm}"
 : "${CARGO_TARGET_DIR:=$ROOT/target}"
+# Fresh CI checkouts (and Docker mounts) may not have target/ yet; probes write here
+# before cargo creates it.
+mkdir -p "$CARGO_TARGET_DIR"
 
 echo "== SoftGPU Phase 1 ROCm load proof =="
 echo "ROCM_PATH=$ROCM_PATH"
