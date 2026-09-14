@@ -14,6 +14,34 @@ Facts SoftGPU depends on must be recorded here with provenance. Secondary blogs 
 
 ---
 
+## Vendored ROCR `hsa.h` (Phase 1+)
+
+| | |
+| --- | --- |
+| Primary URL | https://github.com/ROCm/rocm-systems |
+| Path | `projects/rocr-runtime/runtime/hsa-runtime/inc/` (`hsa.h`, `hsa_ext_amd.h`, transitive headers) |
+| Commit | see `third_party/rocr-headers/COMMIT.txt` |
+| Access date | see `third_party/rocr-headers/ACCESS_DATE.txt` |
+| SoftGPU use | ABI constants/layouts; C layout probe; fail-closed stub generation |
+| Status | observed from upstream develop snapshot; CI also probes `/opt/rocm/include` when present |
+| License/provenance | NCSA text in headers; see `third_party/rocr-headers/README.md` |
+| Test/artifact | `tools/hsa-layout-probe`, `tools/generate-hsa-stubs.pl`, `crates/softgpu-hsa` |
+
+---
+
+## Pinned ROCm integration image (Phase 1)
+
+| | |
+| --- | --- |
+| Image | `rocm/dev-ubuntu-24.04:7.14.0-full` |
+| Digest | `sha256:439edaa8f0c4be4a3728e528f87b8a2ea1f051f34cf10b27caa4bd94f562eda7` |
+| SoftGPU use | Canonical Linux x86_64 HIP load proof |
+| Status | pinned; recorded in `environments/rocm-x86_64/PINNED` |
+| Access date | 2026-09-13 |
+| Test/artifact | `environments/rocm-x86_64/run-phase1-load-proof.sh`, CI job `rocm-integration` |
+
+---
+
 ## HSA Foundation — Runtime Programmer’s Reference 1.2
 
 | | |

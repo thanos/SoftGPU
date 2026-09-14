@@ -1,21 +1,10 @@
-//! SoftGPU Phase 0 library surface.
-//!
-//! This crate intentionally contains **no** ROCr/HSA ABI implementation.
-//! Phase 0 establishes error taxonomy, device-profile schema with provenance,
-//! fidelity vocabulary, and a small CLI for validation smoke tests.
+//! SoftGPU library surface (CLI + re-exports of `softgpu-core`).
 
-pub mod error;
-pub mod fidelity;
-pub mod profile;
-
-pub use error::{Error, ErrorCategory, Result};
-pub use fidelity::FidelityLevel;
-pub use profile::{
-    CapabilityProvenance, DeviceProfile, ProfileField, ProfileIdentity, SupportState,
+pub use softgpu_core::{
+    agent, error, fidelity, handle, profile, runtime, trace, ACTIVE_PHASE, VERSION,
 };
-
-/// SoftGPU crate version string.
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// Active roadmap phase label.
-pub const ACTIVE_PHASE: &str = "phase-0";
+pub use softgpu_core::{
+    AgentInfoAttr, AgentKind, CapabilityProvenance, DeviceProfile, Error, ErrorCategory,
+    FidelityLevel, HandleKind, PackedHandle, ProfileField, ProfileIdentity, Result, Runtime,
+    RuntimeError, SupportState, TraceEvent, TraceLog, VirtualAgent,
+};

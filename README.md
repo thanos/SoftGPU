@@ -2,7 +2,7 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **Phase 0 status:** charter, evidence baseline, and skeleton only. There is **no** ROCr/HSA shared library yet. Do not claim HIP/ROCm compatibility from this tree.
+> **Phase 1 status:** SoftGPU ships a minimal `libhsa-runtime64` (implemented APIs + fail-closed stubs) and a HIP-linked load-proof harness for pinned ROCm **7.14.0**. Queues/AQL/kernels remain unsupported. Treat HIP integration as proven only when the `rocm-integration` CI job is green.
 
 ## What SoftGPU is (and is not)
 
@@ -30,33 +30,38 @@ Do not use “R9700 emulator,” “gfx1201 compatible,” or “conformant” w
 
 Unsupported or malformed input must produce a stable error category, human context, and (where applicable) structured diagnostics. SoftGPU **never silently fakes** unsupported behavior. Optional permissive/approximation modes (future) must warn loudly, mark non-conformance, and stay out of default CI.
 
-## Quick start (Phase 0)
+## Quick start (Phase 2)
 
 Pinned toolchain: **Rust 1.85.0** (`rust-toolchain.toml`). MSRV: **1.85**. Nightly host features: **prohibited**.
 
 ```bash
 # One documented command for Apple Silicon macOS and Linux x86-64:
-cargo test --locked
+cargo test --workspace --locked
 
 # Also useful:
 cargo run --locked -- info
 cargo run --locked -- validate-profile profiles/softgpu-generic-v0.json
+cargo build -p softgpu-hsa --locked
+cc -I third_party/rocr-headers -o target/hsa-layout-probe tools/hsa-layout-probe/probe.c && ./target/hsa-layout-probe
+# Linux x86_64 + ROCm 7.14 (CI / docker):
+#   bash environments/rocm-x86_64/ci-entrypoint.sh
 cargo fmt --check
-cargo clippy --locked --all-targets -- -D warnings
+cargo clippy --workspace --locked --all-targets -- -D warnings
 ```
 
-## Repository map (Phase 0)
+Cargo emits `libhsa_runtime64`. For ROCr-style substitution on Linux, the Phase 1 script stages `libhsa-runtime64.so`.
+
+## Repository map (Phase 2)
 
 ```text
-src/                 # single crate skeleton (errors, fidelity, profiles, CLI)
-profiles/            # versioned device profiles with provenance
-tests/               # profile schema + negative CLI tests
-docs/                # architecture, status, sources, ADRs, articles
-ci/                  # CI notes; GitHub Actions under .github/workflows/
-baoulo/prompts/      # execution charter (not a runtime dependency)
+crates/softgpu-core/   # handles, runtime, agents, traces, profiles
+crates/softgpu-hsa/    # cdylib HSA adapter (minimal exports)
+src/                   # softgpu CLI
+profiles/              # versioned device profiles with provenance
+third_party/rocr-headers/  # pinned hsa.h for probes (NCSA)
+tests/                 # CLI/profile tests
+docs/                  # architecture, status, sources, ADRs, articles
 ```
-
-Crate splits (`softgpu-hsa`, `softgpu-core`, …) wait until Phase 1+ proves a boundary.
 
 ## Documentation
 
@@ -65,8 +70,8 @@ Crate splits (`softgpu-hsa`, `softgpu-core`, …) wait until Phase 1+ proves a b
 - [Support matrix](docs/support-matrix.md)
 - [Sources ledger](docs/sources.md)
 - [Unsafe / FFI policy](docs/unsafe-ffi-policy.md)
-- [ADR-0001: ROCr/HSA substitution boundary](docs/adr/0001-rocr-hsa-substitution-boundary.md)
-- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md)
+- [ADR-0001](docs/adr/0001-rocr-hsa-substitution-boundary.md) · [ADR-0002](docs/adr/0002-generation-safe-handles.md)
+- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md)
 - [Article 19 (draft)](docs/articles/19-why-rust-for-software-gpu.md)
 
 ## License

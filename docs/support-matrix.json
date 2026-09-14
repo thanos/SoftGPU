@@ -14,26 +14,54 @@
       "id": "host-macos-aarch64-rust-1.85",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 0
+      "phase": 2
     },
     {
       "id": "host-linux-x86_64-rust-1.85-no-rocm",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 0
+      "phase": 2
     },
     {
       "id": "host-linux-x86_64-rocm-hip-integration",
       "category": "host-toolchain",
-      "state": "unsupported",
+      "state": "implemented-unverified",
       "phase": 1,
-      "ci_policy": "must-skip-not-pass"
+      "ci_policy": "required-job-rocm-integration",
+      "notes": "Pinned ROCm 7.14.0 digest; becomes verified-integration when CI green"
     },
     {
-      "id": "abi-rocr-hsa-cdylib",
+      "id": "abi-hsa-init-shutdown-agents",
       "category": "abi",
-      "state": "unsupported",
+      "state": "verified-unit",
       "phase": 1
+    },
+    {
+      "id": "abi-hsa-fail-closed-stubs",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 1,
+      "notes": "generated from pinned hsa.h + hsa_ext_amd.h"
+    },
+    {
+      "id": "abi-hip-linked-load-proof",
+      "category": "abi",
+      "state": "implemented-unverified",
+      "phase": 1,
+      "notes": "harness + required CI job; promote on green"
+    },
+    {
+      "id": "abi-hip-linked-hsa-agent-discovery",
+      "category": "abi",
+      "state": "implemented-unverified",
+      "phase": 2,
+      "notes": "controlled subset: HSA iterate from HIP-linked process; FEATURE=0"
+    },
+    {
+      "id": "abi-advertised-agent-field-provenance",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": 2
     },
     {
       "id": "profile-softgpu-generic-v0",
@@ -45,8 +73,7 @@
       "id": "profile-amd-r9700-gfx1201-v0",
       "category": "profile",
       "state": "verified-unit",
-      "phase": 0,
-      "notes": "llvm_target identity verified; resource limits unknown; conformance_allowed false"
+      "phase": 0
     }
   ]
 }

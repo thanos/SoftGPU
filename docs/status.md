@@ -6,46 +6,37 @@
 
 | Capability | Environment | Fidelity | Verification |
 | --- | --- | --- | --- |
-| Cargo build + unit/integration tests | macOS Apple Silicon, Linux x86-64 (core) | n/a (host tooling) | `verified-unit` via `cargo test --locked` |
-| Device profile schema validate/load | any host with Rust 1.85+ | n/a | `verified-unit` |
-| CLI `info` / `validate-profile` / `check-config` | any host with Rust 1.85+ | n/a | `verified-unit` |
-| ROCr/HSA shared library | — | — | **unsupported** |
-| Agent discovery / queues / AQL / kernels | — | — | **unsupported** |
+| Cargo workspace build/test | macOS / Linux x86-64 (core) | n/a | `verified-unit` |
+| Virtual GPU agent + advertised-field provenance | host tests | **ABI** | `verified-unit` |
+| SoftGPU HSA cdylib + fail-closed stubs + `hsa_system_get_info` subset | host / ROCm CI | **ABI** | unit + CI harness |
+| HIP-linked load proof (anti-system-ROCr) | pinned ROCm 7.14.0 CI | **ABI** | required `rocm-integration` |
+| HIP-linked HSA discovery of SoftGPU GPU (`FEATURE=0`) | pinned ROCm 7.14.0 CI | **ABI** | Phase 2 probe in same script |
+| Queues / AQL / kernels | — | — | **unsupported** |
 
 ## Active phase
 
-**Phase 0 — Charter, evidence baseline, and skeleton** (implementation complete locally; awaiting explicit Phase 0 acceptance before Phase 1 ABI work)
+**Phase 2 — Virtual agent discovery** (implementation complete; integration verification via required ROCm CI job)
 
-## Phase 0 acceptance checklist
+## Acceptance notes
 
-| Criterion | Status |
+| Gate | Status |
 | --- | --- |
-| `cargo test --locked` documented for macOS + Linux | Met (README); executed on this Apple Silicon host under pinned 1.85.0; Linux covered by CI workflow |
-| Scope / fidelity / unsupported policy in README | Met |
-| Sources ledger for HSA, ROCr, HIP, LLVM/AMDGPU, Rust, Apple container | Met (`docs/sources.md`) |
-| No invented R9700 numeric specs | Met (limits `unknown`) |
-| Toolchain/MSRV/lockfile/`unsafe` policy; stable-only | Met |
-| CI distinguishes skipped vs passed (ROCm job `if: false`) | Met |
-| Article 1 + Article 19 draft | Met |
+| Phase 0 | Met |
+| Phase 1 HIP load + anti-system-ROCr | Harness + required CI |
+| Phase 2: HIP userspace reaches SoftGPU agent (controlled subset: HSA iterate from HIP-linked process) | Harness + unit provenance tests; CI runs discovery probe |
+| Advertised fields have provenance + tests | Met |
+| Unsupported attrs / handle misuse / traces | Met |
+
+### Controlled subset (honest)
+
+Phase 2 advertises `FEATURE=0` (no dispatch). Therefore SoftGPU does **not** claim `hipGetDeviceCount > 0`. Discovery evidence is: a **HIP-linked** process loads SoftGPU as `libhsa-runtime64`, then `hsa_iterate_agents` / `hsa_agent_get_info` observe the profile-backed GPU agent.
 
 ## Next acceptance gate
 
-**Human acceptance of Phase 0**, then Phase 1: ROCr/HSA ABI reconnaissance and load proof on Linux x86-64 with pinned ROCm.
+Phase 3 — memory regions/pools, signals, and queue mechanics (only after CI remains green on Phase 1/2 probes).
 
 ## High-risk assumptions remaining
 
-1. The practical SoftGPU ↔ HIP userspace boundary remains ROCr/HSA substitution (see ADR-0001); not yet proven with a load test.
-2. Official ROCm packages for gfx1201 / R9700 integration are x86-64 Linux–centric; Apple Silicon cannot be the canonical ROCm gate.
-3. Numeric R9700 resource limits are **unknown** in SoftGPU profiles until measured; do not invent them.
-4. rustc `amdgcn-amd-amdhsa` is Tier 3 and is **not** the Phase 1–6 compatibility path.
-
-## Phase 0 execution note (this session)
-
-| Item | Content |
-| --- | --- |
-| **Objective** | Establish pinned Rust skeleton, truthful docs, profile provenance schema, CI smoke path |
-| **Evidence** | Primary sources recorded in `docs/sources.md` (ROCm/ROCR docs 7.14, HSA Runtime 1.2, LLVM AMDGPUUsage, Apple container, rustc book) |
-| **Assumptions** | Single crate until Phase 1 proves cdylib boundary; MSRV 1.85 / toolchain 1.85.0 |
-| **Test-first** | Profile schema negatives + CLI config negatives before expanding modules |
-| **Risks** | Accidental marketing numbers in R9700 profile; CI marking skipped ROCm jobs as success |
-| **Files** | `src/*`, `profiles/*`, `tests/*`, `docs/*`, `.github/workflows/ci.yml`, policy files |
+1. Stub surface is enough for HIP/HSA libraries to load under SoftGPU substitution.
+2. `TIMESTAMP_FREQUENCY=1e9` is an explicit SoftGPU software-clock provisional, not hardware.
+3. Numeric R9700 limits remain unknown.

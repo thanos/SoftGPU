@@ -1,0 +1,6 @@
+{
+  global:
+    hsa_*;
+  local:
+    *;
+};

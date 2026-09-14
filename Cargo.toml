@@ -1,19 +1,41 @@
-[package]
-name = "softgpu"
-version = "0.0.1"
+[workspace]
+resolver = "2"
+members = [
+    ".",
+    "crates/softgpu-core",
+    "crates/softgpu-hsa",
+]
+default-members = [".", "crates/softgpu-core", "crates/softgpu-hsa"]
+
+[workspace.package]
+version = "0.0.2"
 edition = "2021"
 rust-version = "1.85"
-description = "Developer-oriented GPU emulation, testing, debugging, and sanitization runtime (Phase 0 skeleton)"
 license = "Apache-2.0 OR MIT"
-readme = "README.md"
 repository = "https://github.com/softgpu/softgpu"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+softgpu-core = { path = "crates/softgpu-core" }
+
+[package]
+name = "softgpu"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Developer-oriented GPU emulation, testing, debugging, and sanitization runtime"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
 keywords = ["gpu", "emulation", "hsa", "hip", "rocm"]
 categories = ["development-tools", "emulators"]
 exclude = ["baoulo/**"]
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+softgpu-core = { workspace = true }
 
 [dev-dependencies]
 

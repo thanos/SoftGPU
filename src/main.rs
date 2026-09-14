@@ -1,7 +1,4 @@
-//! SoftGPU Phase 0 CLI.
-//!
-//! Commands intentionally stay small: version/info, profile validation, and
-//! config probes used by negative tests. No ROCr/HSA surface is exposed yet.
+//! SoftGPU CLI.
 
 use softgpu::error::{Error, ErrorCategory, Result};
 use softgpu::profile::DeviceProfile;
@@ -79,7 +76,6 @@ fn run(args: Vec<String>) -> Result<()> {
 }
 
 fn check_config(args: &[String]) -> Result<()> {
-    // Negative-test friendly config probe: rejects unknown keys and empty values.
     if args.is_empty() {
         return Err(Error::new(
             ErrorCategory::Config,
@@ -127,11 +123,10 @@ fn check_config(args: &[String]) -> Result<()> {
                 DeviceProfile::load_path(&path)?;
             }
             "enable_queues" => {
-                // Phase 0: queues are unsupported; refuse to pretend.
                 if value == "true" || value == "1" {
                     return Err(Error::new(
                         ErrorCategory::Unsupported,
-                        "queues are not implemented in phase 0",
+                        "queues are not implemented in phase 2",
                     )
                     .with_remediation("see docs/status.md; queue work begins in phase 3"));
                 }
@@ -160,7 +155,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 0 skeleton
+softgpu {VERSION} — Phase 2 (virtual agent discovery)
 
 USAGE:
   softgpu <command> [args]
@@ -168,13 +163,14 @@ USAGE:
 COMMANDS:
   help                         Show this help
   version                      Print version
-  info                         Print phase, fidelity policy, and toolchain notes
+  info                         Print phase, fidelity policy, and HSA adapter notes
   validate-profile <path>      Validate a device profile JSON document
   check-config KEY=VALUE...    Validate a minimal config surface (negative-test aid)
 
 NOTES:
-  SoftGPU does not implement ROCr/HSA in Phase 0.
-  Unsupported behavior fails closed; never silently succeeds.
+  SoftGPU exports a minimal libhsa_runtime64 (init/shutdown/agent discovery).
+  Rename/symlink to libhsa-runtime64 for ROCr substitution on Linux.
+  Queues, AQL, and kernel execution remain unsupported.
   See README.md and docs/status.md.
 "
     );
@@ -185,10 +181,13 @@ fn print_info() {
     println!("version={VERSION}");
     println!("active_phase={ACTIVE_PHASE}");
     println!("fidelity_policy=named-levels-required");
-    println!("rocr_hsa_library=not-implemented");
+    println!("rocr_hsa_library=softgpu-hsa (init/shutdown/iterate_agents/agent_get_info + fail-closed stubs)");
+    println!("agent_discovery=one-virtual-gpu");
+    println!("dispatch_features=none");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");
     println!("conformance_claims=none");
+    println!("hip_rocm_load_proof=ci-rocm-integration (ROCm 7.14.0 pinned)");
 }
 
 #[cfg(test)]

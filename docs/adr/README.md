@@ -30,4 +30,5 @@ ADRs capture decisions that are expensive to reverse or that affect compatibilit
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| [0001](0001-rocr-hsa-substitution-boundary.md) | ROCr/HSA substitution boundary | Accepted (Phase 0 intent) |
+| [0001](0001-rocr-hsa-substitution-boundary.md) | ROCr/HSA substitution boundary | Accepted |
+| [0002](0002-generation-safe-handles.md) | Generation-safe packed handles | Accepted |
