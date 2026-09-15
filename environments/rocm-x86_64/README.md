@@ -71,8 +71,8 @@ Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or a
 
 ```bash
 brew install container
-container system kernel set --recommended   # first-time setup
 container system start
+# container system kernel set --recommended   # first-time setup
 ```
 
 Then:

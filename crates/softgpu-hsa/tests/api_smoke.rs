@@ -123,3 +123,30 @@ fn not_initialized_errors() {
         assert_eq!(hsa_shut_down(), HSA_STATUS_ERROR_NOT_INITIALIZED);
     }
 }
+
+#[test]
+fn status_string_round_trip() {
+    let _guard = test_lock();
+    unsafe {
+        let mut ptr: *const core::ffi::c_char = std::ptr::null();
+        assert_eq!(
+            hsa_status_string(HSA_STATUS_SUCCESS, &mut ptr),
+            HSA_STATUS_SUCCESS
+        );
+        assert!(!ptr.is_null());
+        let s = std::ffi::CStr::from_ptr(ptr).to_str().unwrap();
+        assert_eq!(s, "HSA_STATUS_SUCCESS");
+
+        assert_eq!(
+            hsa_status_string(HSA_STATUS_ERROR_INVALID_QUEUE, &mut ptr),
+            HSA_STATUS_SUCCESS
+        );
+        let s = std::ffi::CStr::from_ptr(ptr).to_str().unwrap();
+        assert_eq!(s, "HSA_STATUS_ERROR_INVALID_QUEUE");
+
+        assert_eq!(
+            hsa_status_string(HSA_STATUS_SUCCESS, std::ptr::null_mut()),
+            HSA_STATUS_ERROR_INVALID_ARGUMENT
+        );
+    }
+}

@@ -7,6 +7,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- Phase 6: `softgpu-functional` SoftGPU Functional IR (`softgpu-sfir-v1`) CPU interpreter, `softgpu run-functional`, fixtures under `fixtures/functional/`, [`docs/functional-path.md`](docs/functional-path.md), Article 7.
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-6`.
+- Honesty: functional CPU execution ≠ gfx1201 ISA emulation; HIP/HSA AQL still diagnostic-only for kernels.
+- Coverage: shared `tools/coverage.sh`, enforced line/function floors (jq), HTML+LCOV artifacts, CLI smoke + error/status Display tests, `llvm-tools-preview` in toolchain.
+- Tests: SoftGPU-owned fake SFIR programs + forged/null HSA handle fail-closed checks (no mock framework).
+
 ## [0.2.0] — 2026-09-15
 
 ### Added

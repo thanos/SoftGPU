@@ -36,6 +36,7 @@ jobs:
           set -euo pipefail
           cargo publish -p softgpu-core --locked --dry-run
           cargo publish -p softgpu-amd-code-object --locked --dry-run
+          cargo publish -p softgpu-functional --locked --dry-run
           cargo publish -p softgpu-hsa --locked --dry-run
           cargo publish -p softgpu --locked --dry-run
 
@@ -75,9 +76,10 @@ jobs:
             wait_for_crate "$pkg" "$ver"
           }
 
-          # Dependency order: core → amd-code-object → hsa → softgpu CLI
+          # Dependency order: core → amd-code-object → functional → hsa → softgpu CLI
           publish_crate softgpu-core "$SOFTGPU_VER"
           publish_crate softgpu-amd-code-object "$SOFTGPU_VER"
+          publish_crate softgpu-functional "$SOFTGPU_VER"
           publish_crate softgpu-hsa "$SOFTGPU_VER"
           publish_crate softgpu "$SOFTGPU_VER"
 
@@ -99,6 +101,7 @@ jobs:
           - https://crates.io/crates/softgpu
           - https://crates.io/crates/softgpu-core
           - https://crates.io/crates/softgpu-amd-code-object
+          - https://crates.io/crates/softgpu-functional
           - https://crates.io/crates/softgpu-hsa
           "
           gh release create "$TAG" --title "SoftGPU $TAG" --notes "$NOTES"

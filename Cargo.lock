@@ -105,6 +105,7 @@ dependencies = [
  "serde_json",
  "softgpu-amd-code-object",
  "softgpu-core",
+ "softgpu-functional",
 ]
 
 [[package]]
@@ -117,6 +118,14 @@ dependencies = [
 
 [[package]]
 name = "softgpu-core"
+version = "0.2.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "softgpu-functional"
 version = "0.2.0"
 dependencies = [
  "serde",

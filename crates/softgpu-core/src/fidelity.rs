@@ -57,4 +57,26 @@ mod tests {
         let parsed: FidelityLevel = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, FidelityLevel::ArchitecturalIsa);
     }
+
+    #[test]
+    fn all_named_levels_have_stable_ids() {
+        // SoftGPU requires every claim to name a fidelity level — keep the
+        // vocabulary wired end-to-end (Display == as_str == serde kebab).
+        let levels = [
+            FidelityLevel::Abi,
+            FidelityLevel::Protocol,
+            FidelityLevel::Functional,
+            FidelityLevel::ArchitecturalIsa,
+            FidelityLevel::Sanitized,
+            FidelityLevel::AnalyticalPerformance,
+            FidelityLevel::HardwareConformant,
+        ];
+        for level in levels {
+            let json = serde_json::to_string(&level).unwrap();
+            assert_eq!(json, format!("\"{}\"", level.as_str()));
+            assert_eq!(level.to_string(), level.as_str());
+            let parsed: FidelityLevel = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, level);
+        }
+    }
 }
