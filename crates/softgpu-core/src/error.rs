@@ -132,5 +132,33 @@ mod tests {
         assert!(text.contains("error[unsupported]"));
         assert!(text.contains("queues not implemented"));
         assert!(text.contains("phase 3"));
+        assert_eq!(err.category(), ErrorCategory::Unsupported);
+        assert!(err.message().contains("queues"));
+        assert!(err.remediation().unwrap().contains("phase 3"));
+        assert_eq!(err.to_string(), text);
+    }
+
+    #[test]
+    fn categories_and_from_io_json_are_stable() {
+        for (cat, id) in [
+            (ErrorCategory::Config, "config"),
+            (ErrorCategory::Profile, "profile"),
+            (ErrorCategory::Unsupported, "unsupported"),
+            (ErrorCategory::Validation, "validation"),
+            (ErrorCategory::Internal, "internal"),
+            (ErrorCategory::Io, "io"),
+        ] {
+            assert_eq!(cat.as_str(), id);
+            assert_eq!(cat.to_string(), id);
+        }
+
+        let io: Error = std::io::Error::new(std::io::ErrorKind::NotFound, "missing").into();
+        assert_eq!(io.category(), ErrorCategory::Io);
+        assert!(io.remediation().is_some());
+
+        let json: Error = serde_json::from_str::<serde_json::Value>("{")
+            .unwrap_err()
+            .into();
+        assert_eq!(json.category(), ErrorCategory::Profile);
     }
 }

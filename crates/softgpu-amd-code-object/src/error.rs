@@ -52,3 +52,38 @@ impl fmt::Display for CodeObjectError {
 }
 
 impl std::error::Error for CodeObjectError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_covers_variants() {
+        let cases = [
+            CodeObjectError::Io("x".into()),
+            CodeObjectError::TooLarge { size: 9, max: 1 },
+            CodeObjectError::Truncated { detail: "t".into() },
+            CodeObjectError::NotElf,
+            CodeObjectError::UnsupportedClass { class: 1 },
+            CodeObjectError::UnsupportedEndian { data: 2 },
+            CodeObjectError::UnsupportedElfType { etype: 3 },
+            CodeObjectError::BadHeader { detail: "h".into() },
+            CodeObjectError::SectionFault { detail: "s".into() },
+            CodeObjectError::NoteNotFound,
+            CodeObjectError::UnsupportedNote { detail: "n".into() },
+            CodeObjectError::MsgPack { detail: "m".into() },
+            CodeObjectError::Metadata {
+                detail: "md".into(),
+            },
+            CodeObjectError::UnsupportedMetadataVersion { major: 1, minor: 2 },
+            CodeObjectError::UnsupportedTarget {
+                target: "gfx000".into(),
+            },
+            CodeObjectError::LimitExceeded { detail: "l".into() },
+        ];
+        for err in cases {
+            let s = err.to_string();
+            assert!(!s.is_empty(), "{err:?}");
+        }
+    }
+}

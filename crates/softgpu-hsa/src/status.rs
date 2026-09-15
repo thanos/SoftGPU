@@ -30,3 +30,28 @@ pub fn status_string(status: hsa_status_t) -> &'static CStr {
         _ => c"HSA_STATUS_ERROR (SoftGPU unrecognized status)",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_and_unknown_status_strings() {
+        assert_eq!(
+            status_string(HSA_STATUS_SUCCESS).to_bytes(),
+            b"HSA_STATUS_SUCCESS"
+        );
+        assert_eq!(
+            status_string(HSA_STATUS_ERROR_NOT_INITIALIZED).to_bytes(),
+            b"HSA_STATUS_ERROR_NOT_INITIALIZED"
+        );
+        assert_eq!(
+            status_string(HSA_STATUS_ERROR_INVALID_MEMORY_POOL).to_bytes(),
+            b"HSA_STATUS_ERROR_INVALID_MEMORY_POOL"
+        );
+        assert!(status_string(0xDEAD_u32)
+            .to_str()
+            .unwrap()
+            .contains("unrecognized"));
+    }
+}

@@ -11,10 +11,10 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **Active — Phase 5:** AMDGPU code-object metadata inspection (`NT_AMDGPU_METADATA`,
-> `gfx1201` subset). Queues/AQL diagnostic complete remain. Kernel execution is
-> still unsupported. See [docs/status.md](docs/status.md),
-> [docs/code-object.md](docs/code-object.md), and [CHANGELOG.md](CHANGELOG.md).
+> **Active — Phase 6:** SoftGPU Functional IR (`softgpu-sfir-v1`) runs on the CPU.
+> This is **not** gfx1201 ISA emulation. HIP/HSA AQL remains diagnostic-only for
+> kernels. See [docs/status.md](docs/status.md),
+> [docs/functional-path.md](docs/functional-path.md), and [CHANGELOG.md](CHANGELOG.md).
 
 ## What SoftGPU is (and is not)
 
@@ -96,7 +96,7 @@ docs/                  # architecture, status, sources, ADRs, articles
 | Workflow | Purpose |
 | --- | --- |
 | [CI](.github/workflows/ci.yml) | Format, tests, clippy, layout probe, ROCm/HIP load+discovery gate |
-| [Coverage](.github/workflows/coverage.yml) | `cargo llvm-cov` → Coveralls |
+| [Coverage](.github/workflows/coverage.yml) | `tools/coverage.sh` (`cargo llvm-cov`, line/function floors) → Coveralls + HTML artifact |
 | [Code quality](.github/workflows/code-quality.yml) | fmt, clippy `-D warnings`, `cargo doc -D warnings` |
 | [Dependencies](.github/workflows/dependencies.yml) | `cargo-deny` (licenses, advisories, sources) + Dependabot |
 | [Release](.github/workflows/release.yml) | Tag `vX.Y.Z` → crates.io publish + GitHub Release |
@@ -115,11 +115,12 @@ Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/c
 - [Unsafe / FFI policy](docs/unsafe-ffi-policy.md)
 - [ROCm x86_64 env](environments/rocm-x86_64/README.md) — pinned image; local CI via Docker or Apple Container
 - [ADR-0001](docs/adr/0001-rocr-hsa-substitution-boundary.md) · [ADR-0002](docs/adr/0002-generation-safe-handles.md)
-- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md)
+- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md) · [Article 7](docs/articles/07-emulation-vs-simulation.md)
 - [Article 19 (draft)](docs/articles/19-why-rust-for-software-gpu.md)
 - [Phase 3 concurrency invariants](docs/concurrency-phase3.md)
 - [AQL diagnostic contract](docs/aql-diagnostic-contract.md)
 - [Code-object metadata](docs/code-object.md)
+- [Functional IR path](docs/functional-path.md)
 
 ## License
 

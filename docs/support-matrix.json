@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-09-14",
+  "updated": "2026-09-15",
   "states": [
     "implemented-unverified",
     "verified-unit",
@@ -14,13 +14,13 @@
       "id": "host-macos-aarch64-rust-1.85",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 5
+      "phase": 6
     },
     {
       "id": "host-linux-x86_64-rust-1.85-no-rocm",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 5
+      "phase": 6
     },
     {
       "id": "host-linux-x86_64-rocm-hip-integration",
@@ -98,10 +98,24 @@
       "notes": "NT_AMDGPU_METADATA gfx1201 subset; softgpu-synthetic fixtures; no ISA execution"
     },
     {
-      "id": "abi-kernel-execution",
+      "id": "functional-sfir-v1-cpu",
+      "category": "execution",
+      "state": "verified-unit",
+      "phase": 6,
+      "notes": "softgpu-sfir-v1 disclosed IR on CPU; not gfx1201 ISA; not HIP AQL kernel success"
+    },
+    {
+      "id": "abi-hip-aql-kernel-success",
       "category": "abi",
       "state": "unsupported",
-      "phase": 6
+      "phase": 6,
+      "notes": "AQL remains diagnostic_complete only"
+    },
+    {
+      "id": "isa-gfx1201-execution",
+      "category": "execution",
+      "state": "unsupported",
+      "phase": 10
     },
     {
       "id": "profile-softgpu-generic-v0",

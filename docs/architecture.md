@@ -29,15 +29,18 @@ AMD code-object frontend and, eventually, gfx1201 ISA interpreter
 
 Phase 0 defines contracts, vocabulary, and a profile schema.
 Phase 1/2 add a minimal ROCr/HSA `cdylib` and one virtual GPU agent.
-Queues, AQL, and instruction engines remain out of scope until later phases.
+Queues, AQL diagnostic intercept, AMD code-object metadata, and SoftGPU
+Functional IR (`softgpu-sfir-v1`) CPU execution are in scope through Phase 6.
+gfx1201 ISA interpretation remains later and evidence-driven.
 
 ## Boundaries
 
 | Layer | Owns | Must not own |
 | --- | --- | --- |
-| ROCr/HSA adapter (future) | ABI, handles, lifecycle, error mapping, queues/signals | Instruction semantics |
-| Vendor-neutral core (future) | scheduling, abstract memory, diagnostics, sanitizer events | AMD names/encodings as dependencies |
-| AMD frontends (future) | code objects, AQL, gfx12/gfx1201 | Silent success on unknown encodings |
+| ROCr/HSA adapter | ABI, handles, lifecycle, error mapping, queues/signals, AQL diagnostic | Instruction semantics / silent kernel success |
+| Vendor-neutral core | scheduling contracts, traces, profiles, Path C memory | AMD names/encodings as dependencies |
+| SoftGPU Functional IR | disclosed SFIR ops, CPU arena, deterministic WG schedule | gfx1201 encodings; claiming code-object recovery |
+| AMD frontends | code-object metadata, AQL observation, future gfx12/gfx1201 | Silent success on unknown encodings |
 | Profiles | versioned identity/limits/provenance | Invented marketing numbers |
 
 ## Device profile schema (v1)
@@ -70,7 +73,7 @@ See `softgpu::fidelity::FidelityLevel` and README. Rust host memory safety is **
 Workspace members:
 
 - `softgpu` — CLI
-- `softgpu-core` — vendor-neutral runtime, handles, agents, traces, profiles
+- `softgpu-core` — vendor-neutral runtime, handles, agents, traces, profiles, Path C, AQL diagnostic
+- `softgpu-amd-code-object` — bounded ELF64 + AMDHSA metadata inspect
+- `softgpu-functional` — SoftGPU Functional IR (`softgpu-sfir-v1`) CPU executor
 - `softgpu-hsa` — Linux-oriented `cdylib` HSA adapter (`libhsa_runtime64`)
-
-Further splits wait on proven seams (AQL, code objects, engines).

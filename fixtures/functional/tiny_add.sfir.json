@@ -1,0 +1,95 @@
+{
+  "schema": "softgpu-sfir-v1",
+  "fidelity": "functional",
+  "note": "not_gfx1201_isa_emulation",
+  "name": "tiny_add",
+  "source_provenance": "fixtures/functional/tiny_add.ref.c (hand-translated to softgpu-sfir-v1)",
+  "kernarg_layout": [
+    {
+      "name": "a",
+      "offset": 0,
+      "size": 8,
+      "kind": "global_ptr"
+    },
+    {
+      "name": "b",
+      "offset": 8,
+      "size": 8,
+      "kind": "global_ptr"
+    }
+  ],
+  "body": [
+    {
+      "op": "global_id",
+      "dst": "i",
+      "dim": 0
+    },
+    {
+      "op": "const",
+      "dst": "four",
+      "ty": "u64",
+      "value": 4
+    },
+    {
+      "op": "mul",
+      "dst": "off",
+      "lhs": "i",
+      "rhs": "four",
+      "ty": "u64"
+    },
+    {
+      "op": "kernarg_load",
+      "dst": "pa",
+      "offset": 0,
+      "ty": "u64"
+    },
+    {
+      "op": "add",
+      "dst": "addr_a",
+      "lhs": "pa",
+      "rhs": "off",
+      "ty": "u64"
+    },
+    {
+      "op": "load_global",
+      "dst": "va",
+      "addr": "addr_a",
+      "ty": "i32"
+    },
+    {
+      "op": "const",
+      "dst": "one",
+      "ty": "i32",
+      "value": 1
+    },
+    {
+      "op": "add",
+      "dst": "out",
+      "lhs": "va",
+      "rhs": "one",
+      "ty": "i32"
+    },
+    {
+      "op": "kernarg_load",
+      "dst": "pb",
+      "offset": 8,
+      "ty": "u64"
+    },
+    {
+      "op": "add",
+      "dst": "addr_b",
+      "lhs": "pb",
+      "rhs": "off",
+      "ty": "u64"
+    },
+    {
+      "op": "store_global",
+      "addr": "addr_b",
+      "src": "out",
+      "ty": "i32"
+    },
+    {
+      "op": "ret"
+    }
+  ]
+}

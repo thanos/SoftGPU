@@ -1,48 +1,44 @@
 # SoftGPU status
 
-**Access date for this revision:** 2026-09-14
+**Access date for this revision:** 2026-09-15
 
 ## What works today?
 
 | Capability | Environment | Fidelity | Verification |
 | --- | --- | --- | --- |
 | Cargo workspace build/test | macOS / Linux x86-64 (core) | n/a | `verified-unit` |
-| Virtual GPU agent + advertised-field provenance | host tests | **ABI** | `verified-unit` |
-| SoftGPU HSA cdylib + fail-closed stubs + `hsa_system_get_info` subset | host / ROCm CI | **ABI** | unit + required CI |
-| HIP-linked load proof (anti-system-ROCr, `ROCR_1`) | pinned ROCm 7.14.0 CI | **ABI** | required `rocm-integration` |
-| Path C memory, signals, queues, AQL diagnostic intercept | host + ROCm CI | **ABI/Protocol** | Phase 3–4 probes |
-| AMDGPU ELF / `NT_AMDGPU_METADATA` inspect (`gfx1201` subset) | host + ROCm CI | **ABI** | `phase5_code_object` + Phase 5 script |
-| Kernel execution / gfx1201 ISA | — | — | **unsupported** (Phase 6+) |
+| SoftGPU HSA cdylib + Path C / signals / queues / AQL diagnostic | host + ROCm CI | **ABI/Protocol** | Phase 1–4 probes |
+| AMDGPU ELF metadata inspect (`gfx1201` subset) | host + ROCm CI | **ABI** | Phase 5 |
+| SoftGPU Functional IR (`softgpu-sfir-v1`) CPU execution | host | **Functional** | `phase6_functional` + `run-functional` |
+| gfx1201 ISA execution / HIP AQL kernel success | — | — | **unsupported** |
 
 ## Active phase
 
-**Phase 5** — AMD code-object and kernel metadata handling: bounded ELF64 note
-walker, MessagePack AMDHSA metadata for `amdhsa.version` `[1,0]`–`[1,2]` and
-targets containing `gfx1201`, inspection CLI, synthetic fixtures + optional
-official `hipcc` cross-check. See [`docs/code-object.md`](code-object.md) and
-Article 6.
+**Phase 6** — Minimal vendor-neutral functional execution via disclosed SoftGPU
+Functional IR. See [`docs/functional-path.md`](functional-path.md) and Article 7.
+This is **not** gfx1201 ISA emulation.
 
 ## Acceptance notes
 
 | Gate | Status |
 | --- | --- |
-| Phase 0–4 | **Met** (see prior revisions) |
-| Phase 5: metadata parse + fail-closed version/target + fuzz floor + Article 6 | **Met** (host unit; SoftGPU-synthetic fixtures; ROCm optional hipcc note) |
-| Kernel ISA execution | **Not started** (Phase 6+) |
+| Phase 0–5 | **Met** |
+| Phase 6: SFIR path locked, tiny_add/copy/index, bounds, deterministic rerun, Article 7 | **Met** |
+| HIP/HSA AQL kernel execution | **Not claimed** (diagnostic complete ≠ success) |
+| gfx1201 ISA | **Not started** (Phase 10+) |
 
 ### Controlled subset (honest)
 
-SoftGPU inspects AMDGPU metadata notes only. Synthetic fixtures are SoftGPU-built
-ELF+msgpack with provenance `softgpu-synthetic`. Finding kernels is **not**
-kernel execution. `FEATURE=KERNEL_DISPATCH` remains queue + AQL intercept.
+- Functional mode runs SoftGPU-owned SFIR on a CPU arena with GPU-like ids.
+- Provenance for `tiny_add` is hand translation from `tiny_add.ref.c`.
+- Arbitrary AMD code objects are **not** treated as executable IR sources.
 
 ## Next acceptance gate
 
-Phase 6 — Minimal vendor-neutral functional execution (disclosed input path).
+Phase 7 — GPU execution semantics v1 (waves/lanes, group memory, barriers).
 
 ## High-risk assumptions remaining
 
-1. Stub surface remains enough for HIP/HSA load (`ROCR_1`).
-2. Fat HIP host binaries may embed code objects in layouts SoftGPU does not yet unpack; standalone / SoftGPU-synthetic ELF remains the primary metadata gate.
+1. Stub HSA surface remains enough for HIP load (`ROCR_1`).
+2. Functional IR coverage is intentionally tiny; unsupported ops fail closed.
 3. Numeric R9700 limits remain unknown.
-4. Only `gfx1201` targets are accepted in Phase 5.
