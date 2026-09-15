@@ -101,7 +101,7 @@ docs/                  # architecture, status, sources, ADRs, articles
 | [Dependencies](.github/workflows/dependencies.yml) | `cargo-deny` (licenses, advisories, sources) + Dependabot |
 | [Release](.github/workflows/release.yml) | Tag `vX.Y.Z` → crates.io publish + GitHub Release |
 
-**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.2.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
+**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.3.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
 
 Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/config.toml) linker wrapper (or an equivalent) so the cdylib advertises ELF version **`ROCR_1`** for HIP. Cloning this repo already includes that config.
 

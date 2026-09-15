@@ -16,7 +16,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
@@ -26,9 +26,9 @@ homepage = "https://github.com/thanos/SoftGPU"
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-softgpu-core = { path = "crates/softgpu-core", version = "0.2.0" }
-softgpu-amd-code-object = { path = "crates/softgpu-amd-code-object", version = "0.2.0" }
-softgpu-functional = { path = "crates/softgpu-functional", version = "0.2.0" }
+softgpu-core = { path = "crates/softgpu-core", version = "0.3.0" }
+softgpu-amd-code-object = { path = "crates/softgpu-amd-code-object", version = "0.3.0" }
+softgpu-functional = { path = "crates/softgpu-functional", version = "0.3.0" }
 
 [package]
 name = "softgpu"

@@ -7,16 +7,25 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-15
+
 ### Added
 
 - Phase 6: `softgpu-functional` SoftGPU Functional IR (`softgpu-sfir-v1`) CPU interpreter, `softgpu run-functional`, fixtures under `fixtures/functional/`, [`docs/functional-path.md`](docs/functional-path.md), Article 7.
+- Coverage harness: shared `tools/coverage.sh`, enforced line/function floors, HTML+LCOV artifacts, `llvm-tools-preview` in toolchain.
+- Tests: SoftGPU-owned fake SFIR programs + forged/null HSA handle fail-closed checks (no mock framework); CLI smoke for Phase 5/6 commands.
 
 ### Changed
 
 - `ACTIVE_PHASE` → `phase-6`.
 - Honesty: functional CPU execution ≠ gfx1201 ISA emulation; HIP/HSA AQL still diagnostic-only for kernels.
-- Coverage: shared `tools/coverage.sh`, enforced line/function floors (jq), HTML+LCOV artifacts, CLI smoke + error/status Display tests, `llvm-tools-preview` in toolchain.
-- Tests: SoftGPU-owned fake SFIR programs + forged/null HSA handle fail-closed checks (no mock framework).
+- Release publish order includes `softgpu-functional`.
+
+### Notes
+
+- HIP/HSA AQL kernel success remains **unsupported** (diagnostic complete ≠ success).
+- gfx1201 ISA execution remains **unsupported** (Phase 10+).
+- Fidelity claimed for Phase 6 path: **Functional** (disclosed SFIR on CPU).
 
 ## [0.2.0] — 2026-09-15
 
@@ -53,6 +62,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Queues, AQL, kernels, and `hipGetDeviceCount > 0` remain **unsupported** / out of scope for 0.1.0.
 - Fidelity claimed: **ABI** (see README and `docs/status.md`).
 
-[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/thanos/SoftGPU/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/thanos/SoftGPU/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/thanos/SoftGPU/releases/tag/v0.1.0
