@@ -7,6 +7,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- Phase 7: SoftGPU software waves/lanes, group memory, barrier segments, structured `if`/`while`, compares/`and`, selected `atomic_add`; `wave_barrier` schedule; Article 8; `phase7_semantics` tests.
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-7`.
+
 ### Fixed
 
 - Release workflow: skip `cargo publish --dry-run` for crates whose SoftGPU sibling deps are not yet on crates.io; use `cargo info --registry crates-io` so local workspace versions are not mistaken for published crates.

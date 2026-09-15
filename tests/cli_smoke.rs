@@ -33,9 +33,9 @@ fn help_version_info() {
     }
     let info = softgpu_bin().arg("info").output().expect("info");
     let stdout = String::from_utf8_lossy(&info.stdout);
-    assert!(stdout.contains("active_phase=phase-6"), "stdout={stdout}");
+    assert!(stdout.contains("active_phase=phase-7"), "stdout={stdout}");
     assert!(
-        stdout.contains("functional=softgpu-sfir-v1_cpu_not_gfx1201_isa"),
+        stdout.contains("functional=softgpu-sfir-v1_cpu_waves_group_barriers_not_gfx1201_isa"),
         "stdout={stdout}"
     );
 }

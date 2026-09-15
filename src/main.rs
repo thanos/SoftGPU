@@ -328,7 +328,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 6 (SoftGPU Functional IR on CPU)
+softgpu {VERSION} — Phase 7 (SoftGPU Functional IR: waves/group/barriers)
 
 USAGE:
   softgpu <command> [args]
@@ -363,7 +363,7 @@ fn print_info() {
     println!("feature=KERNEL_DISPATCH (queue+AQL intercept; SFIR functional separate)");
     println!("aql=diagnostic_complete_no_execution");
     println!("code_object=amdgpu_metadata_gfx1201_subset");
-    println!("functional=softgpu-sfir-v1_cpu_not_gfx1201_isa");
+    println!("functional=softgpu-sfir-v1_cpu_waves_group_barriers_not_gfx1201_isa");
     println!("memory=path-c-regions-and-amd-pools");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");

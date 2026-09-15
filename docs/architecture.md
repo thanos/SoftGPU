@@ -29,8 +29,9 @@ AMD code-object frontend and, eventually, gfx1201 ISA interpreter
 
 Phase 0 defines contracts, vocabulary, and a profile schema.
 Phase 1/2 add a minimal ROCr/HSA `cdylib` and one virtual GPU agent.
-Queues, AQL diagnostic intercept, AMD code-object metadata, and SoftGPU
-Functional IR (`softgpu-sfir-v1`) CPU execution are in scope through Phase 6.
+Queues, AQL diagnostic intercept, AMD code-object metadata, SoftGPU
+Functional IR (`softgpu-sfir-v1`) CPU execution, and Phase 7 software
+waves/group/barriers are in scope through Phase 7.
 gfx1201 ISA interpretation remains later and evidence-driven.
 
 ## Boundaries

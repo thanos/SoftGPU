@@ -14,13 +14,13 @@
       "id": "host-macos-aarch64-rust-1.85",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 6
+      "phase": 7
     },
     {
       "id": "host-linux-x86_64-rust-1.85-no-rocm",
       "category": "host-toolchain",
       "state": "verified-unit",
-      "phase": 6
+      "phase": 7
     },
     {
       "id": "host-linux-x86_64-rocm-hip-integration",
@@ -103,6 +103,13 @@
       "state": "verified-unit",
       "phase": 6,
       "notes": "softgpu-sfir-v1 disclosed IR on CPU; not gfx1201 ISA; not HIP AQL kernel success"
+    },
+    {
+      "id": "functional-sfir-v1-waves-group-barriers",
+      "category": "execution",
+      "state": "verified-unit",
+      "phase": 7,
+      "notes": "SoftGPU software waves/lanes, group memory, barrier segments, selected atomics; Article 8"
     },
     {
       "id": "abi-hip-aql-kernel-success",

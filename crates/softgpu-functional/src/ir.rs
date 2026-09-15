@@ -1,4 +1,8 @@
 //! SoftGPU Functional IR (`softgpu-sfir-v1`).
+//!
+//! Phase 7 extends the disclosed op set with waves/lanes, group memory,
+//! barriers, structured divergence, comparisons, and selected atomics.
+//! Schema id remains `softgpu-sfir-v1`; unknown ops still fail at parse time.
 
 use crate::error::{FunctionalError, Result};
 use serde::{Deserialize, Serialize};
@@ -15,6 +19,30 @@ pub enum TypeId {
     U64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddrSpace {
+    Global,
+    Group,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AtomicScope {
+    /// SoftGPU workgroup scope (not a hardware memory-order claim).
+    Workgroup,
+    /// SoftGPU device/global arena scope (functional atomic only).
+    Device,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AtomicOrder {
+    /// SoftGPU sequential functional atomic; not a claim of GPU memory model.
+    Relaxed,
+    AcqRel,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum Op {
@@ -23,7 +51,6 @@ pub enum Op {
         ty: TypeId,
         value: i64,
     },
-    /// SoftGPU global linear id for dimension 0/1/2.
     GlobalId {
         dst: String,
         dim: u8,
@@ -35,6 +62,17 @@ pub enum Op {
     WorkgroupId {
         dst: String,
         dim: u8,
+    },
+    /// SoftGPU software lane id within the wave (`flat_local % wave_size`).
+    LaneId {
+        dst: String,
+    },
+    /// SoftGPU software wave id within the workgroup (`flat_local / wave_size`).
+    WaveId {
+        dst: String,
+    },
+    WaveSize {
+        dst: String,
     },
     Add {
         dst: String,
@@ -54,7 +92,25 @@ pub enum Op {
         rhs: String,
         ty: TypeId,
     },
-    /// Load pointer/value from kernarg blob at byte offset.
+    CmpEq {
+        dst: String,
+        lhs: String,
+        rhs: String,
+        ty: TypeId,
+    },
+    CmpNe {
+        dst: String,
+        lhs: String,
+        rhs: String,
+        ty: TypeId,
+    },
+    /// Bitwise and (SoftGPU scalar; used for lane predication masks).
+    And {
+        dst: String,
+        lhs: String,
+        rhs: String,
+        ty: TypeId,
+    },
     KernargLoad {
         dst: String,
         offset: u32,
@@ -69,6 +125,40 @@ pub enum Op {
         addr: String,
         src: String,
         ty: TypeId,
+    },
+    LoadGroup {
+        dst: String,
+        addr: String,
+        ty: TypeId,
+    },
+    StoreGroup {
+        addr: String,
+        src: String,
+        ty: TypeId,
+    },
+    /// Workgroup barrier (SoftGPU generation sync). Illegal inside `If`/`While`.
+    Barrier,
+    /// Structured divergence: active lanes with `cond != 0` run `then_body`,
+    /// others run `else_body`, then reconverge. SoftGPU SIMT, not gfx1201.
+    If {
+        cond: String,
+        then_body: Vec<Op>,
+        #[serde(default)]
+        else_body: Vec<Op>,
+    },
+    /// SoftGPU loop: while any active lane has `cond != 0`, those lanes run `body`.
+    While {
+        cond: String,
+        body: Vec<Op>,
+    },
+    /// `dst = atomic_add(addr, src)` returning the previous value (i32 only).
+    AtomicAdd {
+        dst: String,
+        addr: String,
+        src: String,
+        space: AddrSpace,
+        scope: AtomicScope,
+        order: AtomicOrder,
     },
     Ret,
 }
@@ -90,6 +180,9 @@ pub struct Program {
     pub source_provenance: String,
     #[serde(default)]
     pub kernarg_layout: Vec<KernargField>,
+    /// SoftGPU group/LDS bytes required for this program (software limit).
+    #[serde(default)]
+    pub group_bytes: u32,
     pub body: Vec<Op>,
 }
 
@@ -123,22 +216,92 @@ impl Program {
                 detail: "body must end with ret".into(),
             });
         }
-        for op in &self.body {
-            match op {
-                Op::GlobalId { dim, .. }
-                | Op::LocalId { dim, .. }
-                | Op::WorkgroupId { dim, .. }
-                    if *dim > 2 =>
-                {
-                    return Err(FunctionalError::Validation {
-                        detail: format!("dim {dim} out of range 0..=2"),
-                    });
-                }
-                _ => {}
-            }
-        }
+        validate_ops(&self.body, /*allow_barrier*/ true)?;
         Ok(())
     }
+
+    pub fn has_barrier(&self) -> bool {
+        ops_have_barrier(&self.body)
+    }
+}
+
+fn ops_have_barrier(ops: &[Op]) -> bool {
+    for op in ops {
+        match op {
+            Op::Barrier => return true,
+            Op::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                if ops_have_barrier(then_body) || ops_have_barrier(else_body) {
+                    return true;
+                }
+            }
+            Op::While { body, .. } if ops_have_barrier(body) => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
+fn validate_ops(ops: &[Op], allow_barrier: bool) -> Result<()> {
+    for op in ops {
+        match op {
+            Op::GlobalId { dim, .. } | Op::LocalId { dim, .. } | Op::WorkgroupId { dim, .. }
+                if *dim > 2 =>
+            {
+                return Err(FunctionalError::Validation {
+                    detail: format!("dim {dim} out of range 0..=2"),
+                });
+            }
+            Op::Barrier if !allow_barrier => {
+                return Err(FunctionalError::Validation {
+                    detail: "barrier is illegal inside if/while (divergent barrier unsupported)"
+                        .into(),
+                });
+            }
+            Op::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                validate_ops(then_body, false)?;
+                validate_ops(else_body, false)?;
+            }
+            Op::While { body, .. } => {
+                validate_ops(body, false)?;
+            }
+            Op::AtomicAdd { .. } => {}
+            Op::Ret => {}
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// Split a top-level body into barrier-separated segments (Ret stripped from last).
+pub fn barrier_segments(body: &[Op]) -> Result<Vec<Vec<Op>>> {
+    let mut segs = Vec::new();
+    let mut cur = Vec::new();
+    for op in body {
+        match op {
+            Op::Barrier => {
+                segs.push(std::mem::take(&mut cur));
+            }
+            Op::Ret => {
+                segs.push(std::mem::take(&mut cur));
+                break;
+            }
+            other => cur.push(other.clone()),
+        }
+    }
+    if segs.is_empty() {
+        return Err(FunctionalError::Validation {
+            detail: "empty barrier segments".into(),
+        });
+    }
+    Ok(segs)
 }
 
 pub fn load_program_str(s: &str) -> Result<Program> {

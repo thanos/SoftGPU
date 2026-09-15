@@ -1,4 +1,4 @@
-# SoftGPU Functional IR path (Phase 6)
+# SoftGPU Functional IR path (Phases 6–7)
 
 **Access date:** 2026-09-15  
 **Fidelity:** `functional`  
@@ -7,25 +7,24 @@
 
 ## Research gate (locked)
 
-SoftGPU Phase 6 executes **SoftGPU Functional IR** (`softgpu-sfir-v1`):
+SoftGPU executes **SoftGPU Functional IR** (`softgpu-sfir-v1`):
 
 - SoftGPU-owned JSON IR with an explicit schema
-- Hand-translated from tiny reference C sources (or SoftGPU-authored)
-- Fully disclosed ops: ids, const, add/sub/mul, kernarg load, global load/store, ret
-
-SoftGPU does **not** assert that final AMDGPU ELF/code objects contain executable
-high-level IR. Code-object parsing (Phase 5) remains metadata-only.
+- Hand-translated or SoftGPU-authored programs with disclosed provenance
+- Phase 6 ops: ids, const, add/sub/mul, kernarg load, global load/store, ret
+- Phase 7 ops: lane/wave ids, group load/store, barrier, structured `if`/`while`,
+  compares, `and`, selected `atomic_add`
 
 ## Path from source to result
 
 ```text
-fixtures/functional/tiny_add.ref.c     (host reference semantics)
-        |  hand translation (documented)
+fixtures / SoftGPU-authored builders
+        |  softgpu-sfir-v1
         v
-softgpu-sfir-v1 JSON / Rust builder
-        |  softgpu-functional interpreter
+softgpu-functional interpreter
+  (lex workitem | wave_barrier schedule)
         v
-CPU global arena updates + RunReport (fidelity=functional)
+CPU global (+ group) arena updates + RunReport
 ```
 
 Verify:
@@ -33,18 +32,26 @@ Verify:
 ```bash
 cargo test -p softgpu-functional --locked
 cargo run --locked -- run-functional --builtin tiny_add --n 256 --wg 64
-cargo run --locked -- run-functional fixtures/functional/tiny_add.sfir.json
 ```
 
 ## Address model
 
-Functional “pointers” are **byte offsets** into a SoftGPU `GlobalArena`.
-Kernarg is a separate host blob (pointer fields are arena offsets).
+- **Global:** byte offsets into SoftGPU `GlobalArena`
+- **Group:** per-workgroup arena (`program.group_bytes` / launch config); cleared each WG
+- Kernarg is a separate host blob (pointer fields are arena offsets)
 
-## Scheduler
+## Scheduler (Phase 7)
 
-Deterministic: workgroups in lexicographic order, then local ids lexicographic.
-No wave/lane model yet (Phase 7).
+| Policy | Behavior |
+| --- | --- |
+| `lex_workitem` | Phase 6: each workitem runs to completion in lex order |
+| `wave_barrier` | SoftGPU waves of `wave_size`; barrier-separated segments sync the WG |
+
+Programs containing `barrier` **require** `wave_barrier`. Barriers inside `if`/`while`
+are rejected (divergent barriers unsupported).
+
+SoftGPU `wave_size` is a **software** parameter (default 32). It is not a claim about
+R9700/gfx1201 wavefront hardware.
 
 ## Honesty
 
