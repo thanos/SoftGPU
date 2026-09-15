@@ -23,15 +23,21 @@ jobs:
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           VER="${TAG#v}"
-          CARGO_VER="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          CARGO_VER="$(awk '/^\[workspace\.package\]/{p=1; next} p && /^version = /{gsub(/"/, "", $3); print $3; exit}' Cargo.toml)"
           if [[ "$VER" != "$CARGO_VER" ]]; then
             echo "ERROR: tag $TAG does not match workspace version $CARGO_VER" >&2
             exit 1
           fi
           echo "Publishing SoftGPU $VER"
+          echo "SOFTGPU_VER=$VER" >> "$GITHUB_ENV"
 
-      - name: Dry-run softgpu-core package
-        run: cargo publish -p softgpu-core --locked --dry-run
+      - name: Dry-run publish order
+        run: |
+          set -euo pipefail
+          cargo publish -p softgpu-core --locked --dry-run
+          cargo publish -p softgpu-amd-code-object --locked --dry-run
+          cargo publish -p softgpu-hsa --locked --dry-run
+          cargo publish -p softgpu --locked --dry-run
 
       - name: Publish to crates.io
         env:
@@ -42,18 +48,38 @@ jobs:
             echo "ERROR: repository secret CARGO_REGISTRY_TOKEN is not set" >&2
             exit 1
           fi
-          cargo publish -p softgpu-core --locked
-          # crates.io index can lag briefly after the first crate lands.
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if cargo info softgpu-core@${GITHUB_REF_NAME#v} >/dev/null 2>&1 \
-              || cargo search softgpu-core --limit 1 2>/dev/null | grep -q "^softgpu-core "; then
-              break
+
+          wait_for_crate() {
+            local pkg="$1"
+            local ver="$2"
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              if cargo info "${pkg}@${ver}" >/dev/null 2>&1; then
+                echo "ok: ${pkg}@${ver} visible on crates.io"
+                return 0
+              fi
+              echo "waiting for ${pkg}@${ver} ($i)..."
+              sleep 15
+            done
+            echo "ERROR: timed out waiting for ${pkg}@${ver}" >&2
+            return 1
+          }
+
+          publish_crate() {
+            local pkg="$1"
+            local ver="$2"
+            if cargo info "${pkg}@${ver}" >/dev/null 2>&1; then
+              echo "skip: ${pkg}@${ver} already published"
+              return 0
             fi
-            echo "waiting for softgpu-core on crates.io ($i)..."
-            sleep 15
-          done
-          cargo publish -p softgpu-hsa --locked
-          cargo publish -p softgpu --locked
+            cargo publish -p "$pkg" --locked
+            wait_for_crate "$pkg" "$ver"
+          }
+
+          # Dependency order: core → amd-code-object → hsa → softgpu CLI
+          publish_crate softgpu-core "$SOFTGPU_VER"
+          publish_crate softgpu-amd-code-object "$SOFTGPU_VER"
+          publish_crate softgpu-hsa "$SOFTGPU_VER"
+          publish_crate softgpu "$SOFTGPU_VER"
 
       - name: Create GitHub Release
         env:
@@ -61,6 +87,10 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "skip: GitHub release $TAG already exists"
+            exit 0
+          fi
           NOTES="SoftGPU ${TAG}
 
           See CHANGELOG.md for details.
@@ -68,6 +98,7 @@ jobs:
           Crates:
           - https://crates.io/crates/softgpu
           - https://crates.io/crates/softgpu-core
+          - https://crates.io/crates/softgpu-amd-code-object
           - https://crates.io/crates/softgpu-hsa
           "
           gh release create "$TAG" --title "SoftGPU $TAG" --notes "$NOTES"
