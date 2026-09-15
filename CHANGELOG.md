@@ -7,6 +7,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-15
+
 ### Added
 
 - Phase 8: SoftGPU functional sanitizer (shadow state, SoftGPU happens-before races, missing barrier, OOB/UAF/uninit, replay bundles); `--sanitize` on `run-functional`; Article 9; `phase8_sanitize` tests.
@@ -14,6 +16,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ### Changed
 
 - `ACTIVE_PHASE` → `phase-8`.
+
+### Notes
+
+- HIP/HSA AQL kernel success remains **unsupported** (diagnostic complete ≠ success).
+- gfx1201 ISA execution remains **unsupported** (Phase 10+).
+- Fidelity claimed for Phase 8 path: **Sanitized** (declared SoftGPU HB subset on SFIR).
 
 ## [0.3.0] — 2026-09-15
 
@@ -38,7 +46,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 - HIP/HSA AQL kernel success remains **unsupported** (diagnostic complete ≠ success).
 - gfx1201 ISA execution remains **unsupported** (Phase 10+).
-- Fidelity claimed for Phase 6–8 path: **Functional** / **Sanitized** (disclosed SFIR on CPU).
+- Fidelity claimed for Phase 6–7 path: **Functional** (disclosed SFIR on CPU).
 
 ## [0.2.0] — 2026-09-15
 
@@ -75,7 +83,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Queues, AQL, kernels, and `hipGetDeviceCount > 0` remain **unsupported** / out of scope for 0.1.0.
 - Fidelity claimed: **ABI** (see README and `docs/status.md`).
 
-[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/thanos/SoftGPU/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/thanos/SoftGPU/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/thanos/SoftGPU/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/thanos/SoftGPU/releases/tag/v0.1.0
