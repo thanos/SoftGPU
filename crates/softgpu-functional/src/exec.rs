@@ -6,7 +6,8 @@
 use crate::error::{FunctionalError, Result};
 use crate::ir::{barrier_segments, AddrSpace, Op, Program, TypeId};
 use crate::memory::{kernarg_load, GlobalArena};
-use serde::Serialize;
+use crate::sanitize::{SanitizeMode, SanitizeReport, Sanitizer, WorkItemId};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Marker required on all functional-mode outputs.
@@ -20,7 +21,7 @@ pub const DEFAULT_WAVE_SIZE: u32 = 32;
 pub const MAX_WAVE_SIZE: u32 = 128;
 pub const MAX_GROUP_BYTES: u32 = 64 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SchedulePolicy {
     /// Phase 6 compatible: each workitem runs to completion in lex order.
@@ -94,6 +95,7 @@ pub struct ExecConfig {
     pub group_bytes: u32,
     pub schedule: SchedulePolicy,
     pub step_budget: u64,
+    pub sanitize: SanitizeMode,
 }
 
 impl ExecConfig {
@@ -104,6 +106,7 @@ impl ExecConfig {
             group_bytes: 0,
             schedule: SchedulePolicy::LexWorkitem,
             step_budget: DEFAULT_STEP_BUDGET,
+            sanitize: SanitizeMode::Off,
         }
     }
 
@@ -160,7 +163,7 @@ pub fn run(
     if program.has_barrier() {
         cfg.schedule = SchedulePolicy::WaveBarrier;
     }
-    run_with_config(program, cfg, arena, kernarg)
+    Ok(run_with_config_sanitized(program, cfg, arena, kernarg)?.0)
 }
 
 pub fn run_with_budget(
@@ -176,7 +179,7 @@ pub fn run_with_budget(
     if program.has_barrier() {
         cfg.schedule = SchedulePolicy::WaveBarrier;
     }
-    run_with_config(program, cfg, arena, kernarg)
+    Ok(run_with_config_sanitized(program, cfg, arena, kernarg)?.0)
 }
 
 pub fn run_with_config(
@@ -185,10 +188,32 @@ pub fn run_with_config(
     arena: &mut GlobalArena,
     kernarg: &[u8],
 ) -> Result<RunReport> {
+    Ok(run_with_config_sanitized(program, cfg, arena, kernarg)?.0)
+}
+
+/// Execute with optional SoftGPU Phase 8 sanitizer instrumentation.
+pub fn run_with_config_sanitized(
+    program: &Program,
+    cfg: ExecConfig,
+    arena: &mut GlobalArena,
+    kernarg: &[u8],
+) -> Result<(RunReport, SanitizeReport)> {
+    let group_len = cfg.group_bytes.max(program.group_bytes) as usize;
+    let sanitizer = Sanitizer::new(cfg.sanitize, arena.len(), group_len)?;
+    run_with_sanitizer(program, cfg, arena, kernarg, sanitizer)
+}
+
+/// Execute with a caller-owned sanitizer (for shadow setup such as SoftGPU free/uninit).
+pub fn run_with_sanitizer(
+    program: &Program,
+    cfg: ExecConfig,
+    arena: &mut GlobalArena,
+    kernarg: &[u8],
+    mut sanitizer: Sanitizer,
+) -> Result<(RunReport, SanitizeReport)> {
     program.validate()?;
     cfg.validate(program)?;
 
-    let group_len = cfg.group_bytes.max(program.group_bytes) as usize;
     let mut steps = 0u64;
     let mut workitems = 0u64;
     let mut barrier_generations = 0u64;
@@ -198,7 +223,10 @@ pub fn run_with_config(
     for gz in 0..nwg[2] {
         for gy in 0..nwg[1] {
             for gx in 0..nwg[0] {
+                let group_len = cfg.group_bytes.max(program.group_bytes) as usize;
                 let mut group = GlobalArena::new(group_len);
+                sanitizer.reset_group();
+                sanitizer.barrier_gen = 0;
                 let (s, wi, bg, at) = match cfg.schedule {
                     SchedulePolicy::LexWorkitem => run_workgroup_lex(
                         program,
@@ -208,6 +236,7 @@ pub fn run_with_config(
                         kernarg,
                         [gx, gy, gz],
                         cfg.step_budget.saturating_sub(steps),
+                        &mut sanitizer,
                     )?,
                     SchedulePolicy::WaveBarrier => run_workgroup_wave_barrier(
                         program,
@@ -217,6 +246,7 @@ pub fn run_with_config(
                         kernarg,
                         [gx, gy, gz],
                         cfg.step_budget.saturating_sub(steps),
+                        &mut sanitizer,
                     )?,
                 };
                 steps = steps.saturating_add(s);
@@ -230,7 +260,7 @@ pub fn run_with_config(
         }
     }
 
-    Ok(RunReport {
+    let report = RunReport {
         fidelity: "functional",
         mode: FUNCTIONAL_MODE_MARKER,
         note: "not_gfx1201_isa_emulation",
@@ -243,9 +273,11 @@ pub fn run_with_config(
         schedule: cfg.schedule,
         barrier_generations,
         atomics_executed,
-    })
+    };
+    Ok((report, sanitizer.into_report()))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_workgroup_lex(
     program: &Program,
     cfg: &ExecConfig,
@@ -254,6 +286,7 @@ fn run_workgroup_lex(
     kernarg: &[u8],
     wg: [u32; 3],
     budget: u64,
+    sanitizer: &mut Sanitizer,
 ) -> Result<(u64, u64, u64, u64)> {
     let mut steps = 0u64;
     let mut atomics = 0u64;
@@ -286,6 +319,8 @@ fn run_workgroup_lex(
                     kernarg,
                     budget.saturating_sub(steps),
                     true,
+                    launch.workgroup,
+                    sanitizer,
                 )?;
                 steps = steps.saturating_add(used);
                 atomics = atomics.saturating_add(at);
@@ -299,6 +334,7 @@ fn run_workgroup_lex(
     Ok((steps, workitems, 0, atomics))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_workgroup_wave_barrier(
     program: &Program,
     cfg: &ExecConfig,
@@ -307,6 +343,7 @@ fn run_workgroup_wave_barrier(
     kernarg: &[u8],
     wg: [u32; 3],
     budget: u64,
+    sanitizer: &mut Sanitizer,
 ) -> Result<(u64, u64, u64, u64)> {
     let launch = cfg.launch;
     let flat_n = launch.workgroup_flat();
@@ -334,7 +371,7 @@ fn run_workgroup_wave_barrier(
     let mut atomics = 0u64;
     let n_waves = flat_n.div_ceil(cfg.wave_size);
 
-    for seg in &segments {
+    for (si, seg) in segments.iter().enumerate() {
         for wave in 0..n_waves {
             let lo = (wave * cfg.wave_size) as usize;
             let hi = ((wave * cfg.wave_size + cfg.wave_size).min(flat_n)) as usize;
@@ -348,12 +385,17 @@ fn run_workgroup_wave_barrier(
                 kernarg,
                 budget.saturating_sub(steps),
                 false,
+                launch.workgroup,
+                sanitizer,
             )?;
             steps = steps.saturating_add(used);
             atomics = atomics.saturating_add(at);
             if steps > budget {
                 return Err(FunctionalError::StepBudgetExceeded { steps });
             }
+        }
+        if si + 1 < segments.len() {
+            sanitizer.note_barrier();
         }
     }
 
@@ -414,6 +456,8 @@ fn exec_ops(
     kernarg: &[u8],
     budget: u64,
     stop_at_ret: bool,
+    workgroup: [u32; 3],
+    sanitizer: &mut Sanitizer,
 ) -> Result<(u64, u64)> {
     let mut steps = 0u64;
     let mut atomics = 0u64;
@@ -459,6 +503,8 @@ fn exec_ops(
                     kernarg,
                     budget.saturating_sub(steps),
                     false,
+                    workgroup,
+                    sanitizer,
                 )?;
                 steps = steps.saturating_add(s1);
                 atomics = atomics.saturating_add(a1);
@@ -471,6 +517,8 @@ fn exec_ops(
                     kernarg,
                     budget.saturating_sub(steps),
                     false,
+                    workgroup,
+                    sanitizer,
                 )?;
                 steps = steps.saturating_add(s2);
                 atomics = atomics.saturating_add(a2);
@@ -500,6 +548,8 @@ fn exec_ops(
                     kernarg,
                     budget.saturating_sub(steps),
                     false,
+                    workgroup,
+                    sanitizer,
                 )?;
                 steps = steps.saturating_add(s);
                 atomics = atomics.saturating_add(a);
@@ -516,7 +566,9 @@ fn exec_ops(
                     if steps > budget {
                         return Err(FunctionalError::StepBudgetExceeded { steps });
                     }
-                    let at = exec_lane_op(other, lane, global, group, kernarg)?;
+                    sanitizer.step = sanitizer.step.saturating_add(1);
+                    let at =
+                        exec_lane_op(other, lane, global, group, kernarg, workgroup, sanitizer)?;
                     atomics = atomics.saturating_add(at);
                 }
             }
@@ -528,13 +580,26 @@ fn exec_ops(
     Ok((steps, atomics))
 }
 
+fn actor_of(lane: &Lane, workgroup: [u32; 3]) -> WorkItemId {
+    WorkItemId {
+        workgroup: lane.wg,
+        wave: lane.wave_id,
+        lane: lane.lane_id,
+        flat_local: flat_local(lane.local, workgroup),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn exec_lane_op(
     op: &Op,
     lane: &mut Lane,
     global: &mut GlobalArena,
     group: &mut GlobalArena,
     kernarg: &[u8],
+    workgroup: [u32; 3],
+    sanitizer: &mut Sanitizer,
 ) -> Result<u64> {
+    let actor = actor_of(lane, workgroup);
     match op {
         Op::Const { dst, ty, value } => {
             lane.regs.insert(dst.clone(), narrow(*value, *ty)?);
@@ -618,23 +683,27 @@ fn exec_lane_op(
         }
         Op::LoadGlobal { dst, addr, ty } => {
             let a = get_reg(&lane.regs, addr)? as u64;
+            sanitizer.on_access(AddrSpace::Global, a, *ty, false, false, actor)?;
             lane.regs.insert(dst.clone(), global.load(a, *ty)?);
             Ok(0)
         }
         Op::StoreGlobal { addr, src, ty } => {
             let a = get_reg(&lane.regs, addr)? as u64;
             let v = get_reg(&lane.regs, src)?;
+            sanitizer.on_access(AddrSpace::Global, a, *ty, true, false, actor)?;
             global.store(a, *ty, v)?;
             Ok(0)
         }
         Op::LoadGroup { dst, addr, ty } => {
             let a = get_reg(&lane.regs, addr)? as u64;
+            sanitizer.on_access(AddrSpace::Group, a, *ty, false, false, actor)?;
             lane.regs.insert(dst.clone(), group.load(a, *ty)?);
             Ok(0)
         }
         Op::StoreGroup { addr, src, ty } => {
             let a = get_reg(&lane.regs, addr)? as u64;
             let v = get_reg(&lane.regs, src)?;
+            sanitizer.on_access(AddrSpace::Group, a, *ty, true, false, actor)?;
             group.store(a, *ty, v)?;
             Ok(0)
         }
@@ -648,6 +717,7 @@ fn exec_lane_op(
         } => {
             let a = get_reg(&lane.regs, addr)? as u64;
             let v = get_reg(&lane.regs, src)?;
+            sanitizer.on_access(*space, a, TypeId::I32, true, true, actor)?;
             let arena = match space {
                 AddrSpace::Global => &mut *global,
                 AddrSpace::Group => &mut *group,

@@ -11,21 +11,21 @@
 | AMDGPU ELF metadata inspect (`gfx1201` subset) | host + ROCm CI | **ABI** | Phase 5 |
 | SoftGPU Functional IR (`softgpu-sfir-v1`) CPU execution | host | **Functional** | `phase6_functional` + `run-functional` |
 | SoftGPU waves/lanes, group memory, barriers, selected atomics | host | **Functional** | `phase7_semantics` |
+| SoftGPU memory/race/barrier sanitizer (declared subset) | host | **Sanitized** | `phase8_sanitize` |
 | gfx1201 ISA execution / HIP AQL kernel success | — | — | **unsupported** |
 
 ## Active phase
 
-**Phase 7** — GPU execution semantics v1 on SoftGPU Functional IR (software
-waves/lanes, group memory, barriers, structured divergence, selected atomics).
-See [`docs/functional-path.md`](functional-path.md) and Article 8. This is
-**not** gfx1201 ISA emulation.
+**Phase 8** — Memory, race, and barrier sanitizers on SoftGPU Functional IR.
+See [`docs/functional-path.md`](functional-path.md) and Article 9. This is
+**not** gfx1201 ISA emulation and **not** AMDGPU memory-model evidence.
 
 ## Acceptance notes
 
 | Gate | Status |
 | --- | --- |
-| Phase 0–6 | **Met** |
-| Phase 7: wave/lane ids, group exchange + barrier, divergence, atomics, watchdog, schedule metamorphism, Article 8 | **Met** |
+| Phase 0–7 | **Met** |
+| Phase 8: shadow state, OOB/UAF/uninit, SoftGPU HB race/missing barrier, cross-WG, replay, Article 9 | **Met** |
 | HIP/HSA AQL kernel execution | **Not claimed** |
 | gfx1201 ISA | **Not started** (Phase 10+) |
 
@@ -34,10 +34,11 @@ See [`docs/functional-path.md`](functional-path.md) and Article 8. This is
 - SoftGPU `wave_size` is a software parameter (default 32), not R9700 wavefront evidence.
 - Barriers are segment sync under `wave_barrier` schedule; divergent barriers unsupported.
 - Atomics are functional sequential ops on SoftGPU arenas.
+- Sanitizer races are SoftGPU barrier-generation happens-before, not hardware concurrency.
 
 ## Next acceptance gate
 
-Phase 8 — Memory, race, and barrier sanitizers.
+Phase 9 — Debugger and deterministic exploration.
 
 ## High-risk assumptions remaining
 

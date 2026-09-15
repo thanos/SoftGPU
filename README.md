@@ -11,8 +11,8 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **Active — Phase 7:** SoftGPU Functional IR with software waves/lanes, group
-> memory, barriers, and selected atomics. This is **not** gfx1201 ISA emulation.
+> **Active — Phase 8:** SoftGPU Functional IR sanitizers (shadow memory and a
+> declared SoftGPU happens-before subset). This is **not** gfx1201 ISA emulation.
 > See [docs/status.md](docs/status.md),
 > [docs/functional-path.md](docs/functional-path.md), and [CHANGELOG.md](CHANGELOG.md).
 

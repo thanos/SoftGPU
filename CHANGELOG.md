@@ -9,35 +9,36 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
-- Phase 7: SoftGPU software waves/lanes, group memory, barrier segments, structured `if`/`while`, compares/`and`, selected `atomic_add`; `wave_barrier` schedule; Article 8; `phase7_semantics` tests.
+- Phase 8: SoftGPU functional sanitizer (shadow state, SoftGPU happens-before races, missing barrier, OOB/UAF/uninit, replay bundles); `--sanitize` on `run-functional`; Article 9; `phase8_sanitize` tests.
 
 ### Changed
 
-- `ACTIVE_PHASE` → `phase-7`.
-
-### Fixed
-
-- Release workflow: skip `cargo publish --dry-run` for crates whose SoftGPU sibling deps are not yet on crates.io; use `cargo info --registry crates-io` so local workspace versions are not mistaken for published crates.
+- `ACTIVE_PHASE` → `phase-8`.
 
 ## [0.3.0] — 2026-09-15
 
 ### Added
 
+- Phase 7: SoftGPU software waves/lanes, group memory, barrier segments, structured `if`/`while`, compares/`and`, selected `atomic_add`; `wave_barrier` schedule; Article 8; `phase7_semantics` tests.
 - Phase 6: `softgpu-functional` SoftGPU Functional IR (`softgpu-sfir-v1`) CPU interpreter, `softgpu run-functional`, fixtures under `fixtures/functional/`, [`docs/functional-path.md`](docs/functional-path.md), Article 7.
 - Coverage harness: shared `tools/coverage.sh`, enforced line/function floors, HTML+LCOV artifacts, `llvm-tools-preview` in toolchain.
 - Tests: SoftGPU-owned fake SFIR programs + forged/null HSA handle fail-closed checks (no mock framework); CLI smoke for Phase 5/6 commands.
 
 ### Changed
 
-- `ACTIVE_PHASE` → `phase-6`.
+- `ACTIVE_PHASE` → `phase-7` (then Phase 6 markers in earlier notes).
 - Honesty: functional CPU execution ≠ gfx1201 ISA emulation; HIP/HSA AQL still diagnostic-only for kernels.
 - Release publish order includes `softgpu-functional`.
+
+### Fixed
+
+- Release workflow: skip `cargo publish --dry-run` for crates whose SoftGPU sibling deps are not yet on crates.io; use `cargo info --registry crates-io` so local workspace versions are not mistaken for published crates.
 
 ### Notes
 
 - HIP/HSA AQL kernel success remains **unsupported** (diagnostic complete ≠ success).
 - gfx1201 ISA execution remains **unsupported** (Phase 10+).
-- Fidelity claimed for Phase 6 path: **Functional** (disclosed SFIR on CPU).
+- Fidelity claimed for Phase 6–8 path: **Functional** / **Sanitized** (disclosed SFIR on CPU).
 
 ## [0.2.0] — 2026-09-15
 

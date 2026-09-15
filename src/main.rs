@@ -5,7 +5,10 @@ use softgpu::profile::DeviceProfile;
 use softgpu::{ACTIVE_PHASE, VERSION};
 use softgpu_amd_code_object::inspect_path;
 use softgpu_functional::kernels::{kernarg_two_ptrs, tiny_add};
-use softgpu_functional::{load_program_path, run, GlobalArena, LaunchConfig, TypeId};
+use softgpu_functional::{
+    load_program_path, run_with_config_sanitized, ExecConfig, GlobalArena, LaunchConfig,
+    SanitizeMode, TypeId,
+};
 use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -113,12 +116,13 @@ fn run_cli(args: Vec<String>) -> Result<()> {
 
 fn run_functional(args: &[String]) -> Result<()> {
     // Usage:
-    //   softgpu run-functional --builtin tiny_add [--n 256] [--wg 64]
+    //   softgpu run-functional --builtin tiny_add [--n 256] [--wg 64] [--sanitize off|collect|fail_fast]
     //   softgpu run-functional <program.sfir.json> --n 256 --wg 64
     let mut builtin: Option<String> = None;
     let mut path: Option<PathBuf> = None;
     let mut n: u32 = 256;
     let mut wg: u32 = 64;
+    let mut sanitize = SanitizeMode::Off;
     let mut i = 0usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -148,6 +152,24 @@ fn run_functional(args: &[String]) -> Result<()> {
                     .parse()
                     .map_err(|_| Error::new(ErrorCategory::Validation, "invalid --wg"))?;
             }
+            "--sanitize" => {
+                i += 1;
+                let v = args.get(i).ok_or_else(|| {
+                    Error::new(ErrorCategory::Config, "--sanitize requires a value")
+                })?;
+                sanitize = match v.as_str() {
+                    "off" => SanitizeMode::Off,
+                    "collect" => SanitizeMode::Collect,
+                    "fail_fast" => SanitizeMode::FailFast,
+                    other => {
+                        return Err(Error::new(
+                            ErrorCategory::Validation,
+                            format!("invalid --sanitize '{other}'"),
+                        )
+                        .with_remediation("expected off|collect|fail_fast"));
+                    }
+                };
+            }
             other if !other.starts_with('-') && path.is_none() && builtin.is_none() => {
                 path = Some(PathBuf::from(other));
             }
@@ -157,7 +179,7 @@ fn run_functional(args: &[String]) -> Result<()> {
                     format!("unknown run-functional arg '{other}'"),
                 )
                 .with_remediation(
-                    "usage: softgpu run-functional --builtin tiny_add [--n N] [--wg WG]",
+                    "usage: softgpu run-functional --builtin tiny_add [--n N] [--wg WG] [--sanitize MODE]",
                 ));
             }
         }
@@ -205,15 +227,25 @@ fn run_functional(args: &[String]) -> Result<()> {
         grid: [n, 1, 1],
         workgroup: [wg, 1, 1],
     };
-    let report = run(&program, launch, &mut arena, &kernarg).map_err(|e| {
-        let cat = match &e {
-            softgpu_functional::FunctionalError::Unsupported { .. } => ErrorCategory::Unsupported,
-            softgpu_functional::FunctionalError::Bounds { .. }
-            | softgpu_functional::FunctionalError::Validation { .. } => ErrorCategory::Validation,
-            _ => ErrorCategory::Internal,
-        };
-        Error::new(cat, e.to_string()).with_remediation("see docs/functional-path.md")
-    })?;
+    let mut cfg = ExecConfig::from_launch(launch);
+    cfg.group_bytes = program.group_bytes;
+    if program.has_barrier() {
+        cfg.schedule = softgpu_functional::SchedulePolicy::WaveBarrier;
+    }
+    cfg.sanitize = sanitize;
+    let (report, san) =
+        run_with_config_sanitized(&program, cfg, &mut arena, &kernarg).map_err(|e| {
+            let cat = match &e {
+                softgpu_functional::FunctionalError::Unsupported { .. } => {
+                    ErrorCategory::Unsupported
+                }
+                softgpu_functional::FunctionalError::Bounds { .. }
+                | softgpu_functional::FunctionalError::Validation { .. }
+                | softgpu_functional::FunctionalError::Sanitize(_) => ErrorCategory::Validation,
+                _ => ErrorCategory::Internal,
+            };
+            Error::new(cat, e.to_string()).with_remediation("see docs/functional-path.md")
+        })?;
 
     // Spot-check first and last element against host reference for tiny_add-shaped runs.
     let first = arena
@@ -232,6 +264,18 @@ fn run_functional(args: &[String]) -> Result<()> {
     let json = serde_json::to_string_pretty(&report)
         .map_err(|e| Error::new(ErrorCategory::Internal, format!("json encode failed: {e}")))?;
     println!("{json}");
+    if sanitize != SanitizeMode::Off {
+        let sjson = serde_json::to_string_pretty(&san)
+            .map_err(|e| Error::new(ErrorCategory::Internal, format!("json encode failed: {e}")))?;
+        println!("{sjson}");
+        if !san.ok() {
+            return Err(Error::new(
+                ErrorCategory::Validation,
+                format!("sanitizer reported {} finding(s)", san.findings.len()),
+            )
+            .with_remediation("see docs/articles/09-building-gpu-sanitizers.md"));
+        }
+    }
     Ok(())
 }
 
@@ -328,7 +372,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 7 (SoftGPU Functional IR: waves/group/barriers)
+softgpu {VERSION} — Phase 8 (SoftGPU Functional IR + sanitizers)
 
 USAGE:
   softgpu <command> [args]
@@ -343,12 +387,12 @@ COMMANDS:
   run-functional ...           Execute SoftGPU Functional IR (CPU; not gfx1201 ISA)
 
 RUN-FUNCTIONAL:
-  softgpu run-functional --builtin tiny_add [--n 256] [--wg 64]
+  softgpu run-functional --builtin tiny_add [--n 256] [--wg 64] [--sanitize off|collect|fail_fast]
   softgpu run-functional path/to/program.sfir.json [--n N] [--wg WG]
 
 NOTES:
   Functional mode is SoftGPU-owned SFIR on the CPU. It is never gfx1201 ISA
-  emulation. See docs/functional-path.md and Article 7.
+  emulation. See docs/functional-path.md and Articles 7–9.
 "
     );
 }
@@ -363,7 +407,7 @@ fn print_info() {
     println!("feature=KERNEL_DISPATCH (queue+AQL intercept; SFIR functional separate)");
     println!("aql=diagnostic_complete_no_execution");
     println!("code_object=amdgpu_metadata_gfx1201_subset");
-    println!("functional=softgpu-sfir-v1_cpu_waves_group_barriers_not_gfx1201_isa");
+    println!("functional=softgpu-sfir-v1_cpu_waves_group_barriers_sanitize_not_gfx1201_isa");
     println!("memory=path-c-regions-and-amd-pools");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");

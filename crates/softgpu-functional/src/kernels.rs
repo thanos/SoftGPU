@@ -624,3 +624,288 @@ pub fn infinite_loop_watchdog() -> Program {
         vec![],
     )
 }
+
+/// SoftGPU Phase 8 (negative): every workitem stores to global offset 0 (race).
+pub fn race_all_store_global_zero() -> Program {
+    base(
+        "race_all_store_global_zero",
+        "SoftGPU-authored softgpu-sfir-v1 (Phase 8 intentional global race)",
+        vec![
+            Op::Const {
+                dst: "z".into(),
+                ty: TypeId::U64,
+                value: 0,
+            },
+            Op::Const {
+                dst: "one".into(),
+                ty: TypeId::I32,
+                value: 1,
+            },
+            Op::KernargLoad {
+                dst: "p".into(),
+                offset: 0,
+                ty: TypeId::U64,
+            },
+            Op::Add {
+                dst: "addr".into(),
+                lhs: "p".into(),
+                rhs: "z".into(),
+                ty: TypeId::U64,
+            },
+            Op::StoreGlobal {
+                addr: "addr".into(),
+                src: "one".into(),
+                ty: TypeId::I32,
+            },
+            Op::Ret,
+        ],
+        vec![KernargField {
+            name: "buf".into(),
+            offset: 0,
+            size: 8,
+            kind: "global_ptr".into(),
+        }],
+    )
+}
+
+/// SoftGPU Phase 8 (negative): store at `base + (n * 4)` — one past last element.
+pub fn oob_store_past_end(n: u32) -> Program {
+    let past = i64::from(n) * 4;
+    base(
+        "oob_store_past_end",
+        "SoftGPU-authored softgpu-sfir-v1 (Phase 8 intentional OOB store)",
+        vec![
+            Op::Const {
+                dst: "off".into(),
+                ty: TypeId::U64,
+                value: past,
+            },
+            Op::Const {
+                dst: "one".into(),
+                ty: TypeId::I32,
+                value: 1,
+            },
+            Op::KernargLoad {
+                dst: "p".into(),
+                offset: 0,
+                ty: TypeId::U64,
+            },
+            Op::Add {
+                dst: "addr".into(),
+                lhs: "p".into(),
+                rhs: "off".into(),
+                ty: TypeId::U64,
+            },
+            Op::StoreGlobal {
+                addr: "addr".into(),
+                src: "one".into(),
+                ty: TypeId::I32,
+            },
+            Op::Ret,
+        ],
+        vec![KernargField {
+            name: "buf".into(),
+            offset: 0,
+            size: 8,
+            kind: "global_ptr".into(),
+        }],
+    )
+}
+
+/// SoftGPU Phase 8 (negative): group exchange without barrier (MissingBarrier).
+pub fn group_exchange_missing_barrier(workgroup_x: u32) -> Program {
+    let wg = i64::from(workgroup_x);
+    base_group(
+        "group_exchange_missing_barrier",
+        "SoftGPU-authored softgpu-sfir-v1 (Phase 8 intentional missing barrier)",
+        vec![
+            Op::LocalId {
+                dst: "lid".into(),
+                dim: 0,
+            },
+            Op::GlobalId {
+                dst: "gid".into(),
+                dim: 0,
+            },
+            Op::Const {
+                dst: "four".into(),
+                ty: TypeId::U64,
+                value: 4,
+            },
+            Op::Mul {
+                dst: "goff".into(),
+                lhs: "lid".into(),
+                rhs: "four".into(),
+                ty: TypeId::U64,
+            },
+            Op::StoreGroup {
+                addr: "goff".into(),
+                src: "lid".into(),
+                ty: TypeId::I32,
+            },
+            // Intentionally no Barrier.
+            Op::Const {
+                dst: "one".into(),
+                ty: TypeId::I32,
+                value: 1,
+            },
+            Op::Const {
+                dst: "wg".into(),
+                ty: TypeId::I32,
+                value: wg,
+            },
+            Op::Add {
+                dst: "np1".into(),
+                lhs: "lid".into(),
+                rhs: "one".into(),
+                ty: TypeId::I32,
+            },
+            Op::CmpEq {
+                dst: "wrap".into(),
+                lhs: "np1".into(),
+                rhs: "wg".into(),
+                ty: TypeId::I32,
+            },
+            Op::If {
+                cond: "wrap".into(),
+                then_body: vec![Op::Const {
+                    dst: "nid".into(),
+                    ty: TypeId::I32,
+                    value: 0,
+                }],
+                else_body: vec![Op::Add {
+                    dst: "nid".into(),
+                    lhs: "lid".into(),
+                    rhs: "one".into(),
+                    ty: TypeId::I32,
+                }],
+            },
+            Op::Mul {
+                dst: "noff".into(),
+                lhs: "nid".into(),
+                rhs: "four".into(),
+                ty: TypeId::U64,
+            },
+            Op::LoadGroup {
+                dst: "val".into(),
+                addr: "noff".into(),
+                ty: TypeId::I32,
+            },
+            Op::Mul {
+                dst: "ooff".into(),
+                lhs: "gid".into(),
+                rhs: "four".into(),
+                ty: TypeId::U64,
+            },
+            Op::KernargLoad {
+                dst: "p".into(),
+                offset: 0,
+                ty: TypeId::U64,
+            },
+            Op::Add {
+                dst: "addr".into(),
+                lhs: "p".into(),
+                rhs: "ooff".into(),
+                ty: TypeId::U64,
+            },
+            Op::StoreGlobal {
+                addr: "addr".into(),
+                src: "val".into(),
+                ty: TypeId::I32,
+            },
+            Op::Ret,
+        ],
+        vec![KernargField {
+            name: "out".into(),
+            offset: 0,
+            size: 8,
+            kind: "global_ptr".into(),
+        }],
+        workgroup_x * 4,
+    )
+}
+
+/// SoftGPU Phase 8 (negative): read group memory before any store (uninit).
+pub fn uninit_group_read() -> Program {
+    base_group(
+        "uninit_group_read",
+        "SoftGPU-authored softgpu-sfir-v1 (Phase 8 intentional uninit group read)",
+        vec![
+            Op::Const {
+                dst: "z".into(),
+                ty: TypeId::U64,
+                value: 0,
+            },
+            Op::LoadGroup {
+                dst: "v".into(),
+                addr: "z".into(),
+                ty: TypeId::I32,
+            },
+            Op::KernargLoad {
+                dst: "p".into(),
+                offset: 0,
+                ty: TypeId::U64,
+            },
+            Op::StoreGlobal {
+                addr: "p".into(),
+                src: "v".into(),
+                ty: TypeId::I32,
+            },
+            Op::Ret,
+        ],
+        vec![KernargField {
+            name: "out".into(),
+            offset: 0,
+            size: 8,
+            kind: "global_ptr".into(),
+        }],
+        4,
+    )
+}
+
+/// SoftGPU Phase 8 (negative): every workgroup stores to the same global cell.
+pub fn cross_workgroup_store_zero() -> Program {
+    base(
+        "cross_workgroup_store_zero",
+        "SoftGPU-authored softgpu-sfir-v1 (Phase 8 intentional cross-WG race)",
+        vec![
+            Op::Const {
+                dst: "z".into(),
+                ty: TypeId::U64,
+                value: 0,
+            },
+            Op::WorkgroupId {
+                dst: "w".into(),
+                dim: 0,
+            },
+            Op::KernargLoad {
+                dst: "p".into(),
+                offset: 0,
+                ty: TypeId::U64,
+            },
+            Op::Add {
+                dst: "addr".into(),
+                lhs: "p".into(),
+                rhs: "z".into(),
+                ty: TypeId::U64,
+            },
+            Op::StoreGlobal {
+                addr: "addr".into(),
+                src: "w".into(),
+                ty: TypeId::I32,
+            },
+            Op::Ret,
+        ],
+        vec![KernargField {
+            name: "buf".into(),
+            offset: 0,
+            size: 8,
+            kind: "global_ptr".into(),
+        }],
+    )
+}
+
+/// SoftGPU Phase 8 (positive): private per-lane global store (no race).
+pub fn sanitize_clean_index() -> Program {
+    tiny_index()
+}

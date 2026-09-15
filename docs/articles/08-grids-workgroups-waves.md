@@ -44,7 +44,8 @@ recorded in the IR for honesty but do **not** claim AMDGPU memory-model semantic
 
 - Not gfx1201 wavefront scheduling
 - Not a proof of HIP kernel success via AQL
-- Not a sanitizer (Phase 8)
+- Not a sanitizer completeness claim beyond Phase 8’s declared SoftGPU subset
+  (see Article 9)
 
 ## References
 
