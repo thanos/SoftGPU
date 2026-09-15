@@ -7,6 +7,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Fixed
+
+- Release workflow: skip `cargo publish --dry-run` for crates whose SoftGPU sibling deps are not yet on crates.io; use `cargo info --registry crates-io` so local workspace versions are not mistaken for published crates.
+
 ## [0.3.0] — 2026-09-15
 
 ### Added

@@ -34,11 +34,34 @@ jobs:
       - name: Dry-run publish order
         run: |
           set -euo pipefail
+          # Query crates.io only — bare `cargo info pkg@ver` resolves the local
+          # workspace member and falsely reports unpublished SoftGPU versions.
+          crate_on_crates_io() {
+            cargo info "$1@$2" --registry crates-io >/dev/null 2>&1
+          }
+
+          # Full dry-run (pack + verify) for crates with no SoftGPU sibling deps.
+          # Dependents need softgpu-*@$SOFTGPU_VER on crates.io; that version is
+          # not uploaded until the real publish step, so dry-run cannot resolve them.
           cargo publish -p softgpu-core --locked --dry-run
           cargo publish -p softgpu-amd-code-object --locked --dry-run
           cargo publish -p softgpu-functional --locked --dry-run
-          cargo publish -p softgpu-hsa --locked --dry-run
-          cargo publish -p softgpu --locked --dry-run
+
+          dry_run_if_deps_published() {
+            local pkg="$1"
+            shift
+            local dep
+            for dep in "$@"; do
+              if ! crate_on_crates_io "$dep" "$SOFTGPU_VER"; then
+                echo "skip dry-run: ${pkg} (waiting for ${dep}@${SOFTGPU_VER} on crates.io; validated by ordered publish)"
+                return 0
+              fi
+            done
+            cargo publish -p "$pkg" --locked --dry-run
+          }
+
+          dry_run_if_deps_published softgpu-hsa softgpu-core
+          dry_run_if_deps_published softgpu softgpu-core softgpu-amd-code-object softgpu-functional
 
       - name: Publish to crates.io
         env:
@@ -50,11 +73,15 @@ jobs:
             exit 1
           fi
 
+          crate_on_crates_io() {
+            cargo info "$1@$2" --registry crates-io >/dev/null 2>&1
+          }
+
           wait_for_crate() {
             local pkg="$1"
             local ver="$2"
             for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-              if cargo info "${pkg}@${ver}" >/dev/null 2>&1; then
+              if crate_on_crates_io "$pkg" "$ver"; then
                 echo "ok: ${pkg}@${ver} visible on crates.io"
                 return 0
               fi
@@ -68,7 +95,7 @@ jobs:
           publish_crate() {
             local pkg="$1"
             local ver="$2"
-            if cargo info "${pkg}@${ver}" >/dev/null 2>&1; then
+            if crate_on_crates_io "$pkg" "$ver"; then
               echo "skip: ${pkg}@${ver} already published"
               return 0
             fi
