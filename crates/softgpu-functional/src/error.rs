@@ -1,5 +1,6 @@
 //! Fail-closed functional-execution errors.
 
+use crate::sanitize::Finding;
 use std::fmt;
 
 pub type Result<T> = std::result::Result<T, FunctionalError>;
@@ -25,6 +26,8 @@ pub enum FunctionalError {
     StepBudgetExceeded {
         steps: u64,
     },
+    /// SoftGPU Phase 8 sanitizer finding (fail-fast or hard fault).
+    Sanitize(Finding),
     Internal(String),
 }
 
@@ -47,6 +50,11 @@ impl fmt::Display for FunctionalError {
             Self::StepBudgetExceeded { steps } => {
                 write!(f, "step budget exceeded after {steps} steps")
             }
+            Self::Sanitize(finding) => write!(
+                f,
+                "sanitize: {:?} space={:?} addr={:#x} detail={}",
+                finding.kind, finding.space, finding.addr, finding.detail
+            ),
             Self::Internal(s) => write!(f, "internal: {s}"),
         }
     }
@@ -72,6 +80,22 @@ mod tests {
             },
             FunctionalError::UndefinedReg { name: "r0".into() },
             FunctionalError::StepBudgetExceeded { steps: 9 },
+            FunctionalError::Sanitize(crate::sanitize::Finding {
+                kind: crate::sanitize::FindingKind::Race,
+                space: crate::ir::AddrSpace::Global,
+                addr: 0,
+                size: 4,
+                step: 1,
+                barrier_gen: 0,
+                actor: crate::sanitize::WorkItemId {
+                    workgroup: [0, 0, 0],
+                    wave: 0,
+                    lane: 0,
+                    flat_local: 0,
+                },
+                other: None,
+                detail: "t".into(),
+            }),
             FunctionalError::Internal("i".into()),
         ];
         for err in cases {

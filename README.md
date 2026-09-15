@@ -11,9 +11,9 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **Active — Phase 6:** SoftGPU Functional IR (`softgpu-sfir-v1`) runs on the CPU.
-> This is **not** gfx1201 ISA emulation. HIP/HSA AQL remains diagnostic-only for
-> kernels. See [docs/status.md](docs/status.md),
+> **Active — Phase 8:** SoftGPU Functional IR sanitizers (shadow memory and a
+> declared SoftGPU happens-before subset). This is **not** gfx1201 ISA emulation.
+> See [docs/status.md](docs/status.md),
 > [docs/functional-path.md](docs/functional-path.md), and [CHANGELOG.md](CHANGELOG.md).
 
 ## What SoftGPU is (and is not)
@@ -101,7 +101,7 @@ docs/                  # architecture, status, sources, ADRs, articles
 | [Dependencies](.github/workflows/dependencies.yml) | `cargo-deny` (licenses, advisories, sources) + Dependabot |
 | [Release](.github/workflows/release.yml) | Tag `vX.Y.Z` → crates.io publish + GitHub Release |
 
-**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.3.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
+**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.4.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
 
 Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/config.toml) linker wrapper (or an equivalent) so the cdylib advertises ELF version **`ROCR_1`** for HIP. Cloning this repo already includes that config.
 
@@ -115,7 +115,7 @@ Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/c
 - [Unsafe / FFI policy](docs/unsafe-ffi-policy.md)
 - [ROCm x86_64 env](environments/rocm-x86_64/README.md) — pinned image; local CI via Docker or Apple Container
 - [ADR-0001](docs/adr/0001-rocr-hsa-substitution-boundary.md) · [ADR-0002](docs/adr/0002-generation-safe-handles.md)
-- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md) · [Article 7](docs/articles/07-emulation-vs-simulation.md)
+- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md) · [Article 7](docs/articles/07-emulation-vs-simulation.md) · [Article 8](docs/articles/08-grids-workgroups-waves.md)
 - [Article 19 (draft)](docs/articles/19-why-rust-for-software-gpu.md)
 - [Phase 3 concurrency invariants](docs/concurrency-phase3.md)
 - [AQL diagnostic contract](docs/aql-diagnostic-contract.md)

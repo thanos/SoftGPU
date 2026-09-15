@@ -20,6 +20,7 @@ fn base_program(name: &str, body: Vec<Op>) -> Program {
         name: name.into(),
         source_provenance: "softgpu-test-fake".into(),
         kernarg_layout: vec![],
+        group_bytes: 0,
         body,
     }
 }
