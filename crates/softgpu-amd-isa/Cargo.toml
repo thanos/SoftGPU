@@ -1,17 +1,18 @@
 [package]
-name = "softgpu-core"
+name = "softgpu-amd-isa"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Vendor-neutral SoftGPU runtime core (handles, agents, traces, profiles)"
+description = "Narrow, evidence-sourced gfx1201 ISA decoder/interpreter for SoftGPU (Phase 10)"
 repository.workspace = true
 homepage.workspace = true
 readme = "../../README.md"
-keywords = ["gpu", "emulation", "hsa", "runtime"]
+keywords = ["gpu", "amdgpu", "gfx1201", "isa", "softgpu"]
 categories = ["development-tools", "emulators"]
 
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-softgpu-amd-isa = { workspace = true }
+
+[dev-dependencies]

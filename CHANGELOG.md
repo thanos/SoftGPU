@@ -7,6 +7,33 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-16
+
+### Added
+
+- Phase 10: `softgpu-amd-isa` sourced gfx1201 SALU foundation (decoder, machine
+  state, fail-closed traps, llvm-mc goldens, fuzz), `softgpu decode-isa` /
+  `run-isa`, Article 11.
+- Phase 11: e2e tiny subset `softgpu-gfx1201-e2e-tiny-v1` (SMEM/VOP2/GLOBAL),
+  llvm-mc SoftGPU `tiny_add` text, AQL `softgpu_kernel_success` for registered
+  kernels with SoftGPU kernarg, `softgpu run-kernel`, Article 12,
+  [`docs/isa-path.md`](docs/isa-path.md).
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-11`.
+- Workspace / crates.io package version → `0.6.0` (all SoftGPU crates via
+  `[workspace.package]`, including new `softgpu-amd-isa`).
+
+### Notes
+
+- Unregistered AQL kernels remain `diagnostic_complete_no_execution`.
+- SoftGPU e2e tiny calling convention is SoftGPU-defined (not a full AMD ABI claim).
+- Unrestricted HIP/`hipcc` launch and full gfx1201 coverage remain **unsupported**.
+- Hardware differential deferred to Phase 12.
+- Tag `v0.6.0` must match root `Cargo.toml` `[workspace.package] version = "0.6.0"`
+  (release workflow gate).
+
 ## [0.5.0] — 2026-09-16
 
 ### Added
@@ -102,7 +129,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Queues, AQL, kernels, and `hipGetDeviceCount > 0` remain **unsupported** / out of scope for 0.1.0.
 - Fidelity claimed: **ABI** (see README and `docs/status.md`).
 
-[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/thanos/SoftGPU/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/thanos/SoftGPU/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/thanos/SoftGPU/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/thanos/SoftGPU/compare/v0.2.0...v0.3.0

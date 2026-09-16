@@ -161,6 +161,20 @@ Facts SoftGPU depends on must be recorded here with provenance. Secondary blogs 
 
 ---
 
+## LLVM AMDGPU encodings (Phases 10–11)
+
+| | |
+| --- | --- |
+| Primary URL | https://llvm.org/docs/AMDGPUUsage.html |
+| Observation tool | `llvm-mc -arch=amdgcn -mcpu=gfx1201 -show-encoding` (Homebrew LLVM 21.1.8) |
+| SoftGPU use | Byte-level goldens for SoftGPU SALU subset `softgpu-gfx1201-salu-v1` |
+| Status | observed; SoftGPU tables hand-maintained with provenance |
+| Access date | 2026-09-16 |
+| License/provenance | LLVM Apache-2.0 WITH LLVM-exception; SoftGPU does not copy restricted AMD ISA manuals |
+| Test/artifact | `crates/softgpu-amd-isa/goldens/llvm-mc-gfx1201.json`, `tools/regen-isa-goldens.sh`, `phase10_isa` |
+
+---
+
 ## Conflicts and resolutions
 
 None recorded in Phase 0. When sources disagree: preserve both, prefer pinned toolchain behavior, add an executable probe, isolate version-dependent behavior, document narrowly.

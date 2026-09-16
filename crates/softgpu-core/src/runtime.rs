@@ -6,7 +6,7 @@
 use crate::agent::{AgentInfoAttr, AgentKind, VirtualAgent};
 use crate::aql::{
     parse_supported_packet, DispatchDescriptor, KernargClass, DIAGNOSTIC_COMPLETE_NO_EXECUTION,
-    DIAGNOSTIC_REJECTED,
+    DIAGNOSTIC_REJECTED, KERNEL_SUCCESS,
 };
 use crate::error::{Error, ErrorCategory};
 use crate::fidelity::FidelityLevel;
@@ -25,7 +25,9 @@ use crate::queue::{
 };
 use crate::signal::{SignalCondition, SignalWaitOutcome, SoftGpuSignal};
 use crate::trace::{SharedTrace, TraceEvent, TraceLog, TraceSink};
+use softgpu_amd_isa::{run_code_1d, IsaMemory, WaveSize, TINY_ADD_TEXT};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
+use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
 /// Errors returned by the vendor-neutral runtime (mapped to HSA at the edge).
@@ -91,6 +93,13 @@ struct QueueSlot {
     queue: Option<SoftGpuQueue>,
 }
 
+/// SoftGPU-registered ISA kernel image (Phase 11).
+#[derive(Debug, Clone)]
+pub struct RegisteredIsaKernel {
+    pub name: String,
+    pub code: Vec<u8>,
+}
+
 /// SoftGPU runtime state.
 pub struct Runtime {
     refcount: u32,
@@ -105,6 +114,9 @@ pub struct Runtime {
     next_queue_id: u64,
     /// Captured validated dispatches for offline replay (owned bytes).
     dispatch_captures: Vec<DispatchDescriptor>,
+    /// kernel_object handle → SoftGPU ISA image (Phase 11).
+    isa_kernels: HashMap<u64, RegisteredIsaKernel>,
+    next_kernel_object: u64,
     trace: SharedTrace,
 }
 
@@ -123,8 +135,40 @@ impl Runtime {
             next_generation: 1,
             next_queue_id: 1,
             dispatch_captures: Vec::new(),
+            isa_kernels: HashMap::new(),
+            next_kernel_object: 1,
             trace: SharedTrace::new(512),
         })
+    }
+
+    /// Register a SoftGPU ISA kernel; returns `kernel_object` id for AQL packets.
+    pub fn register_isa_kernel(
+        &mut self,
+        name: impl Into<String>,
+        code: Vec<u8>,
+    ) -> Result<u64, RuntimeError> {
+        if code.is_empty() {
+            return Err(RuntimeError::InvalidArgument);
+        }
+        let id = self.next_kernel_object;
+        self.next_kernel_object = self.next_kernel_object.saturating_add(1);
+        self.isa_kernels.insert(
+            id,
+            RegisteredIsaKernel {
+                name: name.into(),
+                code,
+            },
+        );
+        Ok(id)
+    }
+
+    /// Register the SoftGPU llvm-mc `tiny_add` kernel image.
+    pub fn register_builtin_tiny_add(&mut self) -> Result<u64, RuntimeError> {
+        self.register_isa_kernel("tiny_add", TINY_ADD_TEXT.to_vec())
+    }
+
+    pub fn lookup_isa_kernel(&self, kernel_object: u64) -> Option<&RegisteredIsaKernel> {
+        self.isa_kernels.get(&kernel_object)
     }
 
     /// Owned packet captures suitable for offline `aql::replay_dispatch`.
@@ -879,7 +923,7 @@ impl Runtime {
                         completion_signal: desc.completion_signal,
                     });
                 });
-                self.apply_diagnostic_complete(queue_id, &desc);
+                self.try_dispatch_or_diagnose(queue_id, &desc);
                 self.dispatch_captures.push(desc);
             }
             Err(err) => {
@@ -899,6 +943,112 @@ impl Runtime {
         }
     }
 
+    fn try_dispatch_or_diagnose(&mut self, queue_id: u64, desc: &DispatchDescriptor) {
+        if desc.packet_type != crate::aql::PacketType::KernelDispatch {
+            self.apply_diagnostic_complete(queue_id, desc);
+            return;
+        }
+        let Some(kernel) = self.isa_kernels.get(&desc.kernel_object).cloned() else {
+            self.apply_diagnostic_complete(queue_id, desc);
+            return;
+        };
+        let KernargClass::SoftGpu { addr, .. } = desc.kernarg else {
+            self.apply_diagnostic_complete(queue_id, desc);
+            return;
+        };
+        let grid_x = desc.grid_size[0];
+        if grid_x == 0 {
+            self.apply_diagnostic_complete(queue_id, desc);
+            return;
+        }
+
+        struct AllocMem<'a>(&'a mut SoftGpuAllocator);
+        impl IsaMemory for AllocMem<'_> {
+            fn load_u32(&self, addr: u64) -> softgpu_amd_isa::Result<u32> {
+                let mut buf = [0u8; 4];
+                self.0.read_bytes_at(addr, &mut buf).map_err(|_| {
+                    softgpu_amd_isa::IsaError::new(
+                        softgpu_amd_isa::IsaErrorKind::Trap,
+                        format!("SoftGPU alloc load_u32 OOB/unknown addr=0x{addr:x}"),
+                    )
+                })?;
+                Ok(u32::from_le_bytes(buf))
+            }
+            fn store_u32(&mut self, addr: u64, value: u32) -> softgpu_amd_isa::Result<()> {
+                self.0
+                    .write_bytes_at(addr, &value.to_le_bytes())
+                    .map_err(|_| {
+                        softgpu_amd_isa::IsaError::new(
+                            softgpu_amd_isa::IsaErrorKind::Trap,
+                            format!("SoftGPU alloc store_u32 OOB/unknown addr=0x{addr:x}"),
+                        )
+                    })
+            }
+            fn load_u64(&self, addr: u64) -> softgpu_amd_isa::Result<u64> {
+                let mut buf = [0u8; 8];
+                self.0.read_bytes_at(addr, &mut buf).map_err(|_| {
+                    softgpu_amd_isa::IsaError::new(
+                        softgpu_amd_isa::IsaErrorKind::Trap,
+                        format!("SoftGPU alloc load_u64 OOB/unknown addr=0x{addr:x}"),
+                    )
+                })?;
+                Ok(u64::from_le_bytes(buf))
+            }
+            fn store_u64(&mut self, addr: u64, value: u64) -> softgpu_amd_isa::Result<()> {
+                self.0
+                    .write_bytes_at(addr, &value.to_le_bytes())
+                    .map_err(|_| {
+                        softgpu_amd_isa::IsaError::new(
+                            softgpu_amd_isa::IsaErrorKind::Trap,
+                            format!("SoftGPU alloc store_u64 OOB/unknown addr=0x{addr:x}"),
+                        )
+                    })
+            }
+        }
+
+        let mut mem = AllocMem(&mut self.allocator);
+        match run_code_1d(&kernel.code, &mut mem, addr, grid_x, WaveSize::Wave32) {
+            Ok(_) => self.apply_kernel_success(queue_id, desc, &kernel.name),
+            Err(e) => {
+                let seq = self.trace.with_log(TraceLog::next_seq);
+                self.trace.with_log(|log| {
+                    log.record(TraceEvent::DispatchRejected {
+                        seq,
+                        queue_id,
+                        packet_index: desc.packet_index,
+                        packet_type: desc.packet_type.as_u16(),
+                        detail: e.to_string(),
+                        contract: DIAGNOSTIC_REJECTED.into(),
+                    });
+                });
+                self.apply_diagnostic_reject(queue_id, desc.packet_index);
+            }
+        }
+    }
+
+    fn apply_kernel_success(
+        &mut self,
+        queue_id: u64,
+        desc: &DispatchDescriptor,
+        kernel_name: &str,
+    ) {
+        if desc.completion_signal != 0 {
+            let handle = PackedHandle::from_raw(desc.completion_signal);
+            let _ = self.signal_store_plain(handle, 0);
+        }
+        self.advance_packet_processor(queue_id, desc.packet_index);
+        let seq = self.trace.with_log(TraceLog::next_seq);
+        self.trace.with_log(|log| {
+            log.record(TraceEvent::DiagnosticComplete {
+                seq,
+                queue_id,
+                packet_index: desc.packet_index,
+                completion_signal: desc.completion_signal,
+                contract: KERNEL_SUCCESS.into(),
+                note: format!("softgpu_isa_kernel:{kernel_name}"),
+            });
+        });
+    }
     fn apply_diagnostic_complete(&mut self, queue_id: u64, desc: &DispatchDescriptor) {
         // HSA completion convention: producer waits for signal == 0.
         // SoftGPU stores 0 only as the experimental no-execution contract.

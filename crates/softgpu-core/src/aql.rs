@@ -16,6 +16,8 @@ pub const PACKET_TYPE_BARRIER_OR: u16 = 5;
 /// SoftGPU experimental no-execution completion contract label.
 pub const DIAGNOSTIC_COMPLETE_NO_EXECUTION: &str = "diagnostic_complete_no_execution";
 pub const DIAGNOSTIC_REJECTED: &str = "diagnostic_rejected";
+/// SoftGPU Phase 11: registered ISA kernel ran successfully (named subset only).
+pub const KERNEL_SUCCESS: &str = "softgpu_kernel_success";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PacketType {

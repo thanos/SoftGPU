@@ -33,9 +33,9 @@ fn help_version_info() {
     }
     let info = softgpu_bin().arg("info").output().expect("info");
     let stdout = String::from_utf8_lossy(&info.stdout);
-    assert!(stdout.contains("active_phase=phase-9"), "stdout={stdout}");
+    assert!(stdout.contains("active_phase=phase-11"), "stdout={stdout}");
     assert!(
-        stdout.contains("functional=softgpu-sfir-v1_cpu_waves_sanitize_debug_not_gfx1201_isa"),
+        stdout.contains("isa=softgpu-gfx1201-e2e-tiny-v1_architectural_subset"),
         "stdout={stdout}"
     );
 }
@@ -249,7 +249,7 @@ fn check_config_accepts_and_rejects() {
         .expect("run");
     assert_ok(&output, "check-config ok");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("phase=phase-9"), "stdout={stdout}");
+    assert!(stdout.contains("phase=phase-11"), "stdout={stdout}");
 
     let output = softgpu_bin()
         .args(["check-config", "log_level=info", "enable_execution=true"])
@@ -258,4 +258,46 @@ fn check_config_accepts_and_rejects() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("error[unsupported]"), "stderr={stderr}");
+}
+
+#[test]
+fn decode_and_run_isa_salu_subset() {
+    let output = softgpu_bin()
+        .args(["decode-isa", "0xbe800081", "0xbfb00000"])
+        .output()
+        .expect("run");
+    assert_ok(&output, "decode-isa");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("s_mov_b32 s0, 1"), "stdout={stdout}");
+    assert!(stdout.contains("s_endpgm"), "stdout={stdout}");
+    assert!(
+        stdout.contains("fidelity=architectural_isa"),
+        "stdout={stdout}"
+    );
+
+    let output = softgpu_bin()
+        .args([
+            "run-isa",
+            "--words",
+            "0xbe800081,0xbe810082,0x80020100,0xbfb00000",
+        ])
+        .output()
+        .expect("run");
+    assert_ok(&output, "run-isa");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"halted\":true"), "stdout={stdout}");
+    assert!(stdout.contains("\"sgpr2\":3"), "stdout={stdout}");
+    assert!(stdout.contains("architectural_isa"), "stdout={stdout}");
+}
+
+#[test]
+fn run_kernel_tiny_add() {
+    let output = softgpu_bin()
+        .args(["run-kernel", "--builtin", "tiny_add", "--n", "32"])
+        .output()
+        .expect("run");
+    assert_ok(&output, "run-kernel");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"host_diff_ok\":true"), "stdout={stdout}");
+    assert!(stdout.contains("softgpu_kernel_success"), "stdout={stdout}");
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "states": [
     "implemented-unverified",
     "verified-unit",
@@ -126,17 +126,32 @@
       "notes": "softgpu-debug-trace-v1, breakpoints, snapshots, hostile reader, seeded explore/minimize; Article 10; no invented source maps"
     },
     {
+      "id": "isa-gfx1201-salu-v1",
+      "category": "execution",
+      "state": "verified-unit",
+      "phase": 10,
+      "notes": "SALU foundation folded into softgpu-gfx1201-e2e-tiny-v1"
+    },
+    {
+      "id": "isa-gfx1201-e2e-tiny-v1",
+      "category": "execution",
+      "state": "verified-unit",
+      "phase": 11,
+      "notes": "llvm-mc tiny_add; AQL softgpu_kernel_success when registered; Article 12; SoftGPU calling convention"
+    },
+    {
       "id": "abi-hip-aql-kernel-success",
       "category": "abi",
       "state": "unsupported",
-      "phase": 6,
-      "notes": "AQL remains diagnostic_complete only"
+      "phase": 11,
+      "notes": "Unrestricted HIP launch still unsupported; SoftGPU-registered ISA kernels may succeed"
     },
     {
       "id": "isa-gfx1201-execution",
       "category": "execution",
       "state": "unsupported",
-      "phase": 10
+      "phase": 12,
+      "notes": "Full gfx1201 coverage unsupported; Phase 11 is tiny subset only"
     },
     {
       "id": "profile-softgpu-generic-v0",

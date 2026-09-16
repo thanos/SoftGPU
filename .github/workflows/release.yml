@@ -45,6 +45,7 @@ jobs:
           # not uploaded until the real publish step, so dry-run cannot resolve them.
           cargo publish -p softgpu-core --locked --dry-run
           cargo publish -p softgpu-amd-code-object --locked --dry-run
+          cargo publish -p softgpu-amd-isa --locked --dry-run
           cargo publish -p softgpu-functional --locked --dry-run
 
           dry_run_if_deps_published() {
@@ -61,7 +62,7 @@ jobs:
           }
 
           dry_run_if_deps_published softgpu-hsa softgpu-core
-          dry_run_if_deps_published softgpu softgpu-core softgpu-amd-code-object softgpu-functional
+          dry_run_if_deps_published softgpu softgpu-core softgpu-amd-code-object softgpu-amd-isa softgpu-functional
 
       - name: Publish to crates.io
         env:
@@ -103,9 +104,10 @@ jobs:
             wait_for_crate "$pkg" "$ver"
           }
 
-          # Dependency order: core → amd-code-object → functional → hsa → softgpu CLI
+          # Dependency order: core → amd-code-object → amd-isa → functional → hsa → softgpu CLI
           publish_crate softgpu-core "$SOFTGPU_VER"
           publish_crate softgpu-amd-code-object "$SOFTGPU_VER"
+          publish_crate softgpu-amd-isa "$SOFTGPU_VER"
           publish_crate softgpu-functional "$SOFTGPU_VER"
           publish_crate softgpu-hsa "$SOFTGPU_VER"
           publish_crate softgpu "$SOFTGPU_VER"
@@ -128,6 +130,7 @@ jobs:
           - https://crates.io/crates/softgpu
           - https://crates.io/crates/softgpu-core
           - https://crates.io/crates/softgpu-amd-code-object
+          - https://crates.io/crates/softgpu-amd-isa
           - https://crates.io/crates/softgpu-functional
           - https://crates.io/crates/softgpu-hsa
           "

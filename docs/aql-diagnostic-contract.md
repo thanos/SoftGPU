@@ -29,8 +29,11 @@ When a packet validates:
 4. SoftGPU marks the ring slot `INVALID` and advances HSA `read_index` past the packet.
 5. Trace records `DiagnosticComplete` with `note=not_kernel_success`.
 
-**This is never kernel success.** Completion only means SoftGPU finished the
+**This is never unrestricted HIP kernel success.** Completion only means SoftGPU finished the
 experimental no-execution protocol for that packet.
+
+Phase 11 adds a separate contract, `softgpu_kernel_success`, when a SoftGPU-registered
+ISA kernel image is dispatched with SoftGPU-owned kernarg memory. See Article 12.
 
 ## Diagnostic reject (`diagnostic_rejected`)
 

@@ -159,6 +159,60 @@ impl SoftGpuAllocator {
         })
     }
 
+    /// Find SoftGPU allocation covering `addr` (for ISA global memory).
+    pub fn find_covering(&self, addr: u64) -> Option<AllocationMeta> {
+        let a = addr as usize;
+        for alloc in self.live.values() {
+            let base = alloc.ptr.as_ptr() as usize;
+            if a >= base && a < base + alloc.size {
+                return Some(AllocationMeta {
+                    ptr: base,
+                    size: alloc.size,
+                    space: alloc.space,
+                    alignment: alloc.layout.align(),
+                    alloc_id: alloc.alloc_id,
+                    host_readable: alloc.host_readable,
+                    host_writable: alloc.host_writable,
+                });
+            }
+        }
+        None
+    }
+
+    /// Read bytes from a SoftGPU-tracked allocation (fail closed if OOB/unknown).
+    pub fn read_bytes_at(&self, addr: u64, out: &mut [u8]) -> Result<(), AllocError> {
+        let meta = self
+            .find_covering(addr)
+            .ok_or(AllocError::InvalidArgument)?;
+        let off = (addr as usize) - meta.ptr;
+        if off + out.len() > meta.size || !meta.host_readable {
+            return Err(AllocError::InvalidArgument);
+        }
+        let base = meta.ptr as *const u8;
+        // SAFETY: allocation is live SoftGPU memory; range checked above.
+        unsafe {
+            std::ptr::copy_nonoverlapping(base.add(off), out.as_mut_ptr(), out.len());
+        }
+        Ok(())
+    }
+
+    /// Write bytes into a SoftGPU-tracked allocation.
+    pub fn write_bytes_at(&mut self, addr: u64, data: &[u8]) -> Result<(), AllocError> {
+        let meta = self
+            .find_covering(addr)
+            .ok_or(AllocError::InvalidArgument)?;
+        let off = (addr as usize) - meta.ptr;
+        if off + data.len() > meta.size || !meta.host_writable {
+            return Err(AllocError::InvalidArgument);
+        }
+        let base = meta.ptr as *mut u8;
+        // SAFETY: allocation is live SoftGPU memory; range checked above.
+        unsafe {
+            std::ptr::copy_nonoverlapping(data.as_ptr(), base.add(off), data.len());
+        }
+        Ok(())
+    }
+
     pub fn allocate(
         &mut self,
         space: PackedHandle,

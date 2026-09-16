@@ -1,4 +1,4 @@
-# SoftGPU architecture (Phase 0)
+# SoftGPU architecture (Phase 11 / v0.6.0)
 
 ## Long-term stack
 
@@ -24,16 +24,13 @@ Vendor-neutral SoftGPU core
         +--> optional analytical performance model
         |
         v
-AMD code-object frontend and, eventually, gfx1201 ISA interpreter
+AMD code-object frontend + gfx1201 ISA interpreter (narrow subset)
 ```
 
-Phase 0 defines contracts, vocabulary, and a profile schema.
-Phase 1/2 add a minimal ROCr/HSA `cdylib` and one virtual GPU agent.
-Queues, AQL diagnostic intercept, AMD code-object metadata, SoftGPU
-Functional IR (`softgpu-sfir-v1`) CPU execution, Phase 7 software
-waves/group/barriers, Phase 8 SoftGPU sanitizers, and Phase 9 debugger/
-exploration are in scope through Phase 9.
-gfx1201 ISA interpretation remains later and evidence-driven.
+Phase 0–9 cover contracts through SoftGPU Functional IR debugging.
+Phase 10–11 add `softgpu-amd-isa`: sourced gfx1201 Architectural ISA for the
+named e2e tiny subset, plus SoftGPU-registered AQL kernel success for that
+image only. Unrestricted HIP launch remains unsupported.
 
 ## Boundaries
 
@@ -42,7 +39,7 @@ gfx1201 ISA interpretation remains later and evidence-driven.
 | ROCr/HSA adapter | ABI, handles, lifecycle, error mapping, queues/signals, AQL diagnostic | Instruction semantics / silent kernel success |
 | Vendor-neutral core | scheduling contracts, traces, profiles, Path C memory | AMD names/encodings as dependencies |
 | SoftGPU Functional IR | disclosed SFIR ops, CPU arena, deterministic WG schedule | gfx1201 encodings; claiming code-object recovery |
-| AMD frontends | code-object metadata, AQL observation, future gfx12/gfx1201 | Silent success on unknown encodings |
+| AMD frontends | code-object metadata, AQL observation, gfx1201 ISA subset | Silent success on unknown encodings |
 | Profiles | versioned identity/limits/provenance | Invented marketing numbers |
 
 ## Device profile schema (v1)
@@ -77,5 +74,6 @@ Workspace members:
 - `softgpu` — CLI
 - `softgpu-core` — vendor-neutral runtime, handles, agents, traces, profiles, Path C, AQL diagnostic
 - `softgpu-amd-code-object` — bounded ELF64 + AMDHSA metadata inspect
+- `softgpu-amd-isa` — gfx1201 e2e tiny ISA decoder/interpreter (Phases 10–11)
 - `softgpu-functional` — SoftGPU Functional IR (`softgpu-sfir-v1`) CPU executor
 - `softgpu-hsa` — Linux-oriented `cdylib` HSA adapter (`libhsa_runtime64`)
