@@ -6,8 +6,8 @@ use softgpu::{ACTIVE_PHASE, VERSION};
 use softgpu_amd_code_object::inspect_path;
 use softgpu_functional::kernels::{kernarg_two_ptrs, tiny_add};
 use softgpu_functional::{
-    load_program_path, run_with_config_sanitized, ExecConfig, GlobalArena, LaunchConfig,
-    SanitizeMode, TypeId,
+    load_program_path, run_debug, run_with_config_sanitized, Breakpoint, ExecConfig, GlobalArena,
+    LaunchConfig, SanitizeMode, TypeId, DEFAULT_TRACE_EVENT_BUDGET,
 };
 use std::env;
 use std::path::PathBuf;
@@ -37,7 +37,7 @@ fn run_cli(args: Vec<String>) -> Result<()> {
     if args.is_empty() {
         return Err(Error::new(
             ErrorCategory::Config,
-            "missing command; expected one of: help, version, info, validate-profile, check-config, inspect-code-object, run-functional",
+            "missing command; expected one of: help, version, info, validate-profile, check-config, inspect-code-object, run-functional, debug-functional",
         )
         .with_remediation("run `softgpu help`"));
     }
@@ -106,6 +106,7 @@ fn run_cli(args: Vec<String>) -> Result<()> {
             Ok(())
         }
         "run-functional" => run_functional(&args[1..]),
+        "debug-functional" => debug_functional(&args[1..]),
         "check-config" => check_config(&args[1..]),
         other => Err(
             Error::new(ErrorCategory::Config, format!("unknown command '{other}'"))
@@ -279,6 +280,140 @@ fn run_functional(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+fn debug_functional(args: &[String]) -> Result<()> {
+    // softgpu debug-functional --builtin tiny_add [--n N] [--wg WG] [--break-step N] [--break-mem]
+    let mut builtin: Option<String> = None;
+    let mut n: u32 = 64;
+    let mut wg: u32 = 32;
+    let mut break_step: Option<u64> = None;
+    let mut break_mem = false;
+    let mut i = 0usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--builtin" => {
+                i += 1;
+                builtin = Some(
+                    args.get(i)
+                        .ok_or_else(|| {
+                            Error::new(ErrorCategory::Config, "--builtin requires a name")
+                        })?
+                        .clone(),
+                );
+            }
+            "--n" => {
+                i += 1;
+                n = args
+                    .get(i)
+                    .ok_or_else(|| Error::new(ErrorCategory::Config, "--n requires a value"))?
+                    .parse()
+                    .map_err(|_| Error::new(ErrorCategory::Validation, "invalid --n"))?;
+            }
+            "--wg" => {
+                i += 1;
+                wg = args
+                    .get(i)
+                    .ok_or_else(|| Error::new(ErrorCategory::Config, "--wg requires a value"))?
+                    .parse()
+                    .map_err(|_| Error::new(ErrorCategory::Validation, "invalid --wg"))?;
+            }
+            "--break-step" => {
+                i += 1;
+                break_step = Some(
+                    args.get(i)
+                        .ok_or_else(|| {
+                            Error::new(ErrorCategory::Config, "--break-step requires a value")
+                        })?
+                        .parse()
+                        .map_err(|_| {
+                            Error::new(ErrorCategory::Validation, "invalid --break-step")
+                        })?,
+                );
+            }
+            "--break-mem" => {
+                break_mem = true;
+            }
+            other => {
+                return Err(Error::new(
+                    ErrorCategory::Config,
+                    format!("unknown debug-functional arg '{other}'"),
+                )
+                .with_remediation(
+                    "usage: softgpu debug-functional --builtin tiny_add [--break-step N] [--break-mem]",
+                ));
+            }
+        }
+        i += 1;
+    }
+
+    let program = match builtin.as_deref() {
+        Some("tiny_add") => tiny_add(),
+        Some(other) => {
+            return Err(
+                Error::new(ErrorCategory::Config, format!("unknown builtin '{other}'"))
+                    .with_remediation("builtins: tiny_add"),
+            );
+        }
+        None => {
+            return Err(Error::new(
+                ErrorCategory::Config,
+                "debug-functional requires --builtin <name>",
+            )
+            .with_remediation(
+                "example: softgpu debug-functional --builtin tiny_add --break-step 5",
+            ));
+        }
+    };
+
+    let mut bps = Vec::new();
+    if let Some(step) = break_step {
+        bps.push(Breakpoint::AfterStep { step });
+    }
+    if break_mem {
+        bps.push(Breakpoint::OnMemoryAccess);
+    }
+    if bps.is_empty() {
+        bps.push(Breakpoint::AfterStep { step: 1 });
+    }
+
+    let mut arena = GlobalArena::new((n as usize) * 4 * 2);
+    for i in 0..n {
+        arena
+            .store(u64::from(i) * 4, TypeId::I32, i64::from(i as i32))
+            .map_err(|e| Error::new(ErrorCategory::Internal, e.to_string()))?;
+    }
+    let kernarg = kernarg_two_ptrs(0, u64::from(n) * 4);
+    let mut cfg = ExecConfig::from_launch(LaunchConfig {
+        grid: [n, 1, 1],
+        workgroup: [wg, 1, 1],
+    });
+    cfg.group_bytes = program.group_bytes;
+
+    let (report, trace) = run_debug(
+        &program,
+        cfg,
+        &mut arena,
+        &kernarg,
+        bps,
+        false,
+        DEFAULT_TRACE_EVENT_BUDGET,
+    )
+    .map_err(|e| {
+        Error::new(ErrorCategory::Validation, e.to_string())
+            .with_remediation("see docs/articles/10-debugging-softgpu-lanes.md")
+    })?;
+
+    let json = serde_json::to_string_pretty(&report)
+        .map_err(|e| Error::new(ErrorCategory::Internal, format!("json encode failed: {e}")))?;
+    println!("{json}");
+    print!(
+        "{}",
+        trace
+            .to_jsonl()
+            .map_err(|e| Error::new(ErrorCategory::Internal, e.to_string()))?
+    );
+    Ok(())
+}
+
 fn check_config(args: &[String]) -> Result<()> {
     if args.is_empty() {
         return Err(Error::new(
@@ -372,7 +507,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 8 (SoftGPU Functional IR + sanitizers)
+softgpu {VERSION} — Phase 9 (SoftGPU Functional IR debugger)
 
 USAGE:
   softgpu <command> [args]
@@ -385,14 +520,18 @@ COMMANDS:
   check-config KEY=VALUE...    Validate a minimal config surface (negative-test aid)
   inspect-code-object <path>   Parse AMDGPU ELF metadata (no ISA execution)
   run-functional ...           Execute SoftGPU Functional IR (CPU; not gfx1201 ISA)
+  debug-functional ...         SoftGPU SFIR debugger (breakpoints + JSONL trace)
 
 RUN-FUNCTIONAL:
   softgpu run-functional --builtin tiny_add [--n 256] [--wg 64] [--sanitize off|collect|fail_fast]
   softgpu run-functional path/to/program.sfir.json [--n N] [--wg WG]
 
+DEBUG-FUNCTIONAL:
+  softgpu debug-functional --builtin tiny_add [--break-step N] [--break-mem]
+
 NOTES:
   Functional mode is SoftGPU-owned SFIR on the CPU. It is never gfx1201 ISA
-  emulation. See docs/functional-path.md and Articles 7–9.
+  emulation. See docs/functional-path.md and Articles 7–10.
 "
     );
 }
@@ -407,7 +546,7 @@ fn print_info() {
     println!("feature=KERNEL_DISPATCH (queue+AQL intercept; SFIR functional separate)");
     println!("aql=diagnostic_complete_no_execution");
     println!("code_object=amdgpu_metadata_gfx1201_subset");
-    println!("functional=softgpu-sfir-v1_cpu_waves_group_barriers_sanitize_not_gfx1201_isa");
+    println!("functional=softgpu-sfir-v1_cpu_waves_sanitize_debug_not_gfx1201_isa");
     println!("memory=path-c-regions-and-amd-pools");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");
