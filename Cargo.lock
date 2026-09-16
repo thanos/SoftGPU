@@ -99,7 +99,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "softgpu"
-version = "0.6.0"
+version = "0.8.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "softgpu-amd-code-object"
-version = "0.6.0"
+version = "0.8.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -119,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "softgpu-amd-isa"
-version = "0.6.0"
+version = "0.8.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -127,16 +127,17 @@ dependencies = [
 
 [[package]]
 name = "softgpu-core"
-version = "0.6.0"
+version = "0.8.0"
 dependencies = [
  "serde",
  "serde_json",
+ "softgpu-amd-code-object",
  "softgpu-amd-isa",
 ]
 
 [[package]]
 name = "softgpu-functional"
-version = "0.6.0"
+version = "0.8.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -144,7 +145,7 @@ dependencies = [
 
 [[package]]
 name = "softgpu-hsa"
-version = "0.6.0"
+version = "0.8.0"
 dependencies = [
  "cc",
  "softgpu-core",

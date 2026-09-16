@@ -43,6 +43,16 @@ my %implemented = map { $_ => 1 } qw(
   hsa_queue_store_write_index_screlease
   hsa_queue_store_read_index_relaxed
   hsa_queue_store_read_index_screlease
+  hsa_code_object_reader_create_from_memory
+  hsa_code_object_reader_create_from_file
+  hsa_code_object_reader_destroy
+  hsa_executable_create_alt
+  hsa_executable_destroy
+  hsa_executable_load_agent_code_object
+  hsa_executable_freeze
+  hsa_executable_get_symbol_by_name
+  hsa_executable_symbol_get_info
+  hsa_executable_get_info
 );
 
 open my $fh, '<', $header or die "read $header: $!";

@@ -1,13 +1,14 @@
 //! Phase 11 — first end-to-end SoftGPU gfx1201 tiny_add kernel.
 
 use softgpu_amd_isa::{
-    run_tiny_add_1d, tiny_add_host_ref, GlobalArena, IsaMemory, WaveSize, SUBSET_NAME,
-    TINY_ADD_TEXT,
+    run_tiny_add_1d, tiny_add_host_ref, GlobalArena, IsaMemory, WaveSize, SUBSET_E2E_TINY_V1,
+    SUBSET_NAME, TINY_ADD_TEXT,
 };
 
 #[test]
 fn tiny_add_matches_host_reference() {
-    assert_eq!(SUBSET_NAME, "softgpu-gfx1201-e2e-tiny-v1");
+    assert_eq!(SUBSET_NAME, "softgpu-gfx1201-compute-v2");
+    assert_eq!(SUBSET_E2E_TINY_V1, "softgpu-gfx1201-e2e-tiny-v1");
     assert_eq!(TINY_ADD_TEXT.len(), 60);
 
     let n = 64u32;

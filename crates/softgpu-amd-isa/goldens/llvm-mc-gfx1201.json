@@ -151,6 +151,526 @@
         "0x80"
       ],
       "word": "0x80030504"
+    },
+    {
+      "asm": "s_cmp_eq_u32 s0, s1",
+      "bytes_le": [
+        "0x00",
+        "0x01",
+        "0x06",
+        "0xbf"
+      ],
+      "word": "0xbf060100"
+    },
+    {
+      "asm": "s_cmp_eq_u32 s0, 1",
+      "bytes_le": [
+        "0x00",
+        "0x81",
+        "0x06",
+        "0xbf"
+      ],
+      "word": "0xbf068100"
+    },
+    {
+      "asm": "s_cmp_lg_u32 s2, s3",
+      "bytes_le": [
+        "0x02",
+        "0x03",
+        "0x07",
+        "0xbf"
+      ],
+      "word": "0xbf070302"
+    },
+    {
+      "asm": "s_cmp_lt_i32 s0, s1",
+      "bytes_le": [
+        "0x00",
+        "0x01",
+        "0x04",
+        "0xbf"
+      ],
+      "word": "0xbf040100"
+    },
+    {
+      "asm": "s_cmp_gt_u32 s4, 0",
+      "bytes_le": [
+        "0x04",
+        "0x80",
+        "0x08",
+        "0xbf"
+      ],
+      "word": "0xbf088004"
+    },
+    {
+      "asm": "s_cmp_ge_u32 s0, s1",
+      "bytes_le": [
+        "0x00",
+        "0x01",
+        "0x09",
+        "0xbf"
+      ],
+      "word": "0xbf090100"
+    },
+    {
+      "asm": "s_cmp_le_u32 s0, s1",
+      "bytes_le": [
+        "0x00",
+        "0x01",
+        "0x0b",
+        "0xbf"
+      ],
+      "word": "0xbf0b0100"
+    },
+    {
+      "asm": "s_cmp_eq_i32 s0, s1",
+      "bytes_le": [
+        "0x00",
+        "0x01",
+        "0x00",
+        "0xbf"
+      ],
+      "word": "0xbf000100"
+    },
+    {
+      "asm": "s_movk_i32 s0, 0x2a",
+      "bytes_le": [
+        "0x2a",
+        "0x00",
+        "0x00",
+        "0xb0"
+      ],
+      "word": "0xb000002a"
+    },
+    {
+      "asm": "s_movk_i32 s1, 0xffff",
+      "bytes_le": [
+        "0xff",
+        "0xff",
+        "0x01",
+        "0xb0"
+      ],
+      "word": "0xb001ffff"
+    },
+    {
+      "asm": "s_addk_co_i32 s0, 0x7",
+      "bytes_le": [
+        "0x07",
+        "0x00",
+        "0x80",
+        "0xb7"
+      ],
+      "word": "0xb7800007"
+    },
+    {
+      "asm": "s_mulk_i32 s2, 0x3",
+      "bytes_le": [
+        "0x03",
+        "0x00",
+        "0x02",
+        "0xb8"
+      ],
+      "word": "0xb8020003"
+    },
+    {
+      "asm": "s_cbranch_scc0 4",
+      "bytes_le": [
+        "0x04",
+        "0x00",
+        "0xa1",
+        "0xbf"
+      ],
+      "word": "0xbfa10004"
+    },
+    {
+      "asm": "s_cbranch_scc1 8",
+      "bytes_le": [
+        "0x08",
+        "0x00",
+        "0xa2",
+        "0xbf"
+      ],
+      "word": "0xbfa20008"
+    },
+    {
+      "asm": "s_cbranch_scc0 -4",
+      "bytes_le": [
+        "0xfc",
+        "0xff",
+        "0xa1",
+        "0xbf"
+      ],
+      "word": "0xbfa1fffc"
+    },
+    {
+      "asm": "s_cbranch_execz 4",
+      "bytes_le": [
+        "0x04",
+        "0x00",
+        "0xa5",
+        "0xbf"
+      ],
+      "word": "0xbfa50004"
+    },
+    {
+      "asm": "s_cbranch_execnz 4",
+      "bytes_le": [
+        "0x04",
+        "0x00",
+        "0xa6",
+        "0xbf"
+      ],
+      "word": "0xbfa60004"
+    },
+    {
+      "asm": "s_and_b32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x00",
+        "0x8b"
+      ],
+      "word": "0x8b000201"
+    },
+    {
+      "asm": "s_or_b32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x00",
+        "0x8c"
+      ],
+      "word": "0x8c000201"
+    },
+    {
+      "asm": "s_xor_b32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x00",
+        "0x8d"
+      ],
+      "word": "0x8d000201"
+    },
+    {
+      "asm": "s_sub_co_u32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x80",
+        "0x80"
+      ],
+      "word": "0x80800201"
+    },
+    {
+      "asm": "s_min_u32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x80",
+        "0x89"
+      ],
+      "word": "0x89800201"
+    },
+    {
+      "asm": "s_max_u32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x80",
+        "0x8a"
+      ],
+      "word": "0x8a800201"
+    },
+    {
+      "asm": "s_mul_i32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x00",
+        "0x96"
+      ],
+      "word": "0x96000201"
+    },
+    {
+      "asm": "s_not_b32 s0, s1",
+      "bytes_le": [
+        "0x01",
+        "0x1e",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe801e01"
+    },
+    {
+      "asm": "s_brev_b32 s0, s1",
+      "bytes_le": [
+        "0x01",
+        "0x04",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe800401"
+    },
+    {
+      "asm": "s_and_saveexec_b32 s0, s1",
+      "bytes_le": [
+        "0x01",
+        "0x20",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe802001"
+    },
+    {
+      "asm": "s_or_saveexec_b32 s0, s1",
+      "bytes_le": [
+        "0x01",
+        "0x22",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe802201"
+    },
+    {
+      "asm": "v_mov_b32_e32 v0, v1",
+      "bytes_le": [
+        "0x01",
+        "0x03",
+        "0x00",
+        "0x7e"
+      ],
+      "word": "0x7e000301"
+    },
+    {
+      "asm": "v_mov_b32_e32 v2, 5",
+      "bytes_le": [
+        "0x85",
+        "0x02",
+        "0x04",
+        "0x7e"
+      ],
+      "word": "0x7e040285"
+    },
+    {
+      "asm": "v_mov_b32_e32 v0, s1",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x00",
+        "0x7e"
+      ],
+      "word": "0x7e000201"
+    },
+    {
+      "asm": "v_not_b32_e32 v0, v1",
+      "bytes_le": [
+        "0x01",
+        "0x6f",
+        "0x00",
+        "0x7e"
+      ],
+      "word": "0x7e006f01"
+    },
+    {
+      "asm": "v_bfrev_b32_e32 v0, v1",
+      "bytes_le": [
+        "0x01",
+        "0x71",
+        "0x00",
+        "0x7e"
+      ],
+      "word": "0x7e007101"
+    },
+    {
+      "asm": "v_sub_nc_u32_e32 v0, v1, v2",
+      "bytes_le": [
+        "0x01",
+        "0x05",
+        "0x00",
+        "0x4c"
+      ],
+      "word": "0x4c000501"
+    },
+    {
+      "asm": "v_sub_nc_u32_e32 v0, 1, v1",
+      "bytes_le": [
+        "0x81",
+        "0x02",
+        "0x00",
+        "0x4c"
+      ],
+      "word": "0x4c000281"
+    },
+    {
+      "asm": "v_min_u32_e32 v0, v1, v2",
+      "bytes_le": [
+        "0x01",
+        "0x05",
+        "0x00",
+        "0x26"
+      ],
+      "word": "0x26000501"
+    },
+    {
+      "asm": "v_max_u32_e32 v0, v1, v2",
+      "bytes_le": [
+        "0x01",
+        "0x05",
+        "0x00",
+        "0x28"
+      ],
+      "word": "0x28000501"
+    },
+    {
+      "asm": "v_and_b32_e32 v0, v1, v2",
+      "bytes_le": [
+        "0x01",
+        "0x05",
+        "0x00",
+        "0x36"
+      ],
+      "word": "0x36000501"
+    },
+    {
+      "asm": "v_or_b32_e32 v0, v1, v2",
+      "bytes_le": [
+        "0x01",
+        "0x05",
+        "0x00",
+        "0x38"
+      ],
+      "word": "0x38000501"
+    },
+    {
+      "asm": "v_xor_b32_e32 v0, v1, v2",
+      "bytes_le": [
+        "0x01",
+        "0x05",
+        "0x00",
+        "0x3a"
+      ],
+      "word": "0x3a000501"
+    },
+    {
+      "asm": "v_lshrrev_b32_e32 v0, 2, v1",
+      "bytes_le": [
+        "0x82",
+        "0x02",
+        "0x00",
+        "0x32"
+      ],
+      "word": "0x32000282"
+    },
+    {
+      "asm": "v_ashrrev_i32_e32 v0, 2, v1",
+      "bytes_le": [
+        "0x82",
+        "0x02",
+        "0x00",
+        "0x34"
+      ],
+      "word": "0x34000282"
+    },
+    {
+      "asm": "v_lshlrev_b32_e32 v1, 2, v0",
+      "bytes_le": [
+        "0x82",
+        "0x00",
+        "0x02",
+        "0x30"
+      ],
+      "word": "0x30020082"
+    },
+    {
+      "asm": "v_add_nc_u32_e32 v2, 1, v2",
+      "bytes_le": [
+        "0x81",
+        "0x04",
+        "0x04",
+        "0x4a"
+      ],
+      "word": "0x4a040481"
+    },
+    {
+      "asm": "v_cmp_eq_u32_e32 vcc_lo, v0, v1",
+      "bytes_le": [
+        "0x00",
+        "0x03",
+        "0x94",
+        "0x7c"
+      ],
+      "word": "0x7c940300"
+    },
+    {
+      "asm": "v_cmp_eq_u32_e32 vcc_lo, 0, v1",
+      "bytes_le": [
+        "0x80",
+        "0x02",
+        "0x94",
+        "0x7c"
+      ],
+      "word": "0x7c940280"
+    },
+    {
+      "asm": "v_cmp_ne_u32_e32 vcc_lo, v0, v1",
+      "bytes_le": [
+        "0x00",
+        "0x03",
+        "0x9a",
+        "0x7c"
+      ],
+      "word": "0x7c9a0300"
+    },
+    {
+      "asm": "v_cmp_lt_u32_e32 vcc_lo, v0, v1",
+      "bytes_le": [
+        "0x00",
+        "0x03",
+        "0x92",
+        "0x7c"
+      ],
+      "word": "0x7c920300"
+    },
+    {
+      "asm": "v_cmp_gt_u32_e32 vcc_lo, v0, v1",
+      "bytes_le": [
+        "0x00",
+        "0x03",
+        "0x98",
+        "0x7c"
+      ],
+      "word": "0x7c980300"
+    },
+    {
+      "asm": "v_cmp_le_u32_e32 vcc_lo, v0, v1",
+      "bytes_le": [
+        "0x00",
+        "0x03",
+        "0x96",
+        "0x7c"
+      ],
+      "word": "0x7c960300"
+    },
+    {
+      "asm": "v_cmp_ge_u32_e32 vcc_lo, v0, v1",
+      "bytes_le": [
+        "0x00",
+        "0x03",
+        "0x9c",
+        "0x7c"
+      ],
+      "word": "0x7c9c0300"
+    },
+    {
+      "asm": "v_cndmask_b32_e32 v0, v1, v2, vcc_lo",
+      "bytes_le": [
+        "0x01",
+        "0x05",
+        "0x00",
+        "0x02"
+      ],
+      "word": "0x02000501"
     }
   ]
 }

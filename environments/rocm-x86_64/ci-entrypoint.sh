@@ -38,5 +38,7 @@ perl tools/generate-hsa-stubs.pl \
   '#include "hsa_ext_amd.h"'
 
 chmod +x environments/rocm-x86_64/run-phase1-load-proof.sh \
+  environments/rocm-x86_64/run-phase-hip-load.sh \
   crates/softgpu-hsa/link-cdylib.sh
 bash environments/rocm-x86_64/run-phase1-load-proof.sh
+bash environments/rocm-x86_64/run-phase-hip-load.sh

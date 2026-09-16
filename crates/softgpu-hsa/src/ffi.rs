@@ -115,6 +115,51 @@ pub const HSA_SIGNAL_CONDITION_EQ: hsa_signal_condition_t = 0;
 pub const HSA_WAIT_STATE_BLOCKED: hsa_wait_state_t = 0;
 pub const HSA_WAIT_STATE_ACTIVE: hsa_wait_state_t = 1;
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct hsa_code_object_reader_t {
+    pub handle: u64,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct hsa_executable_t {
+    pub handle: u64,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct hsa_executable_symbol_t {
+    pub handle: u64,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct hsa_loaded_code_object_t {
+    pub handle: u64,
+}
+
+pub type hsa_profile_t = u32;
+pub type hsa_default_float_rounding_mode_t = u32;
+pub type hsa_executable_info_t = i32;
+pub type hsa_executable_symbol_info_t = i32;
+pub type hsa_symbol_kind_t = u32;
+pub type hsa_executable_state_t = u32;
+
+pub const HSA_EXECUTABLE_INFO_STATE: hsa_executable_info_t = 1;
+pub const HSA_EXECUTABLE_STATE_UNFROZEN: hsa_executable_state_t = 0;
+pub const HSA_EXECUTABLE_STATE_FROZEN: hsa_executable_state_t = 1;
+pub const HSA_SYMBOL_KIND_KERNEL: hsa_symbol_kind_t = 1;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_TYPE: hsa_executable_symbol_info_t = 0;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH: hsa_executable_symbol_info_t = 1;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_NAME: hsa_executable_symbol_info_t = 2;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_SIZE: hsa_executable_symbol_info_t = 11;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_ALIGNMENT:
+    hsa_executable_symbol_info_t = 12;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_GROUP_SEGMENT_SIZE: hsa_executable_symbol_info_t = 13;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_PRIVATE_SEGMENT_SIZE: hsa_executable_symbol_info_t = 14;
+pub const HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_OBJECT: hsa_executable_symbol_info_t = 22;
+
 const _: () = assert!(mem::size_of::<hsa_agent_t>() == 8);
 const _: () = assert!(mem::align_of::<hsa_agent_t>() == 8);
 const _: () = assert!(mem::size_of::<hsa_status_t>() == 4);

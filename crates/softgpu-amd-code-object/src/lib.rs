@@ -8,11 +8,13 @@
 pub mod elf;
 pub mod error;
 pub mod fixture;
+pub mod load;
 pub mod metadata;
 pub mod msgpack;
 pub mod note;
 
 pub use error::{CodeObjectError, Result};
+pub use load::{load_agent_image, LaunchAbi, LoadableAgentImage, LoadableKernel};
 pub use metadata::{
     inspect_bytes, inspect_path, CodeObjectInfo, KernelArgInfo, KernelInfo, MetadataVersion,
     SUPPORTED_AMDHSA_VERSIONS, SUPPORTED_GFX_SUBSTRING,

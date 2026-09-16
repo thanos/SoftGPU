@@ -33,9 +33,12 @@ fn help_version_info() {
     }
     let info = softgpu_bin().arg("info").output().expect("info");
     let stdout = String::from_utf8_lossy(&info.stdout);
-    assert!(stdout.contains("active_phase=phase-11"), "stdout={stdout}");
     assert!(
-        stdout.contains("isa=softgpu-gfx1201-e2e-tiny-v1_architectural_subset"),
+        stdout.contains("active_phase=phase-hip-load"),
+        "stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("isa=softgpu-gfx1201-compute-v2_architectural_subset"),
         "stdout={stdout}"
     );
 }
@@ -249,7 +252,7 @@ fn check_config_accepts_and_rejects() {
         .expect("run");
     assert_ok(&output, "check-config ok");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("phase=phase-11"), "stdout={stdout}");
+    assert!(stdout.contains("phase=phase-hip-load"), "stdout={stdout}");
 
     let output = softgpu_bin()
         .args(["check-config", "log_level=info", "enable_execution=true"])

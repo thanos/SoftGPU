@@ -11,11 +11,10 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **v0.6.0 — Native gfx1201 preview (Phases 10–11):** SoftGPU Functional IR
-> through Phase 9 **plus** a narrow Architectural ISA path and SoftGPU-registered
-> `tiny_add` AQL success (`softgpu-gfx1201-e2e-tiny-v1`). Not full gfx1201 /
-> unrestricted HIP launch. See [docs/status.md](docs/status.md) and
-> [CHANGELOG.md](CHANGELOG.md).
+> **v0.8.0 — Better HIP load:** HSA executable/code-object subset loads SoftGPU
+> gfx1201 agent images (metadata + `.text`) to AQL `softgpu_kernel_success`.
+> Broader ISA `compute-v2` from v0.7. Not unrestricted HIP / hardware RC.
+> See [docs/status.md](docs/status.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## What SoftGPU is (and is not)
 
@@ -55,6 +54,8 @@ Releases are organized around **what a developer can accomplish**. Engineering *
 | **v0.4.0 — Correctness alpha** | Shared memory, divergence, barriers, selected atomics; memory/race/barrier checks for a declared subset. **Phases 7–8.** Event/replay scaffolding starts with the functional engine, not only at 0.5. |
 | **v0.5.0 — Reproducible debugging beta** | Replay bundles, stepping, state inspection, controlled schedule exploration, failure minimization. **Phase 9.** |
 | **v0.6.0 — Native gfx1201 preview** | Sourced gfx1201 ISA decoder/interpreter (`softgpu-amd-isa`); SoftGPU-registered llvm-mc `tiny_add` with AQL `softgpu_kernel_success` (`softgpu-gfx1201-e2e-tiny-v1`). **Phases 10–11.** Not full gfx1201 / unrestricted HIP launch. Hardware observations when available begin here and consolidate in 0.9. |
+| **v0.7.0 — Broader gfx1201 compute ISA** | Named subset `softgpu-gfx1201-compute-v2` (SALU/VALU breadth: SOPC/SOPK/branches, VOP1/VOPC, richer SOP/VOP2). SoftGPU-registered builtins (`tiny_add`, `clamp64`, `select_gt50`). Milestone `isa-compute-v2` / `ACTIVE_PHASE=phase-isa-v2`. Still SoftGPU CC; not HIP module load. |
+| **v0.8.0 — Better HIP load** | HSA executable/code-object subset + AMDHSA launch for a pinned gfx1201 HSACO under SoftGPU; HIP e2e alloc→load→launch→check. Milestone `hip-executable-v1`. Not unrestricted HIP / rocBLAS. |
 | **v0.9.0 — Hardware-validated RC** | Differential hardware suite, verified profile fields, FP comparison rules, discrepancy tracking. **Phase 12** consolidates earlier evidence. |
 | **v1.0.0 — Supported developer tool** | Reliable install, stable diagnostic contracts, versioned replay/profile formats, documented compatibility and upgrade policy. **Phase 13** plus hardening. |
 
@@ -126,6 +127,8 @@ Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/c
 - [Code-object metadata](docs/code-object.md)
 - [Functional IR path](docs/functional-path.md)
 - [ISA path (Phases 10–11)](docs/isa-path.md)
+- [ISA gap analysis (SoftGPU ↔ gfx1201)](docs/ISA-gap-analysis.md)
+- [HIP/ROCr comparative study (SoftGPU ↔ real gfx1201 card)](docs/HIP-gap-analysis.md)
 
 ## License
 

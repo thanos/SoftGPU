@@ -140,11 +140,25 @@
       "notes": "llvm-mc tiny_add; AQL softgpu_kernel_success when registered; Article 12; SoftGPU calling convention"
     },
     {
+      "id": "isa-gfx1201-compute-v2",
+      "category": "execution",
+      "state": "verified-unit",
+      "phase": "isa-v2",
+      "notes": "SOPC/SOPK/branches, VOP1/VOPC, richer SOP/VOP2; builtins clamp64/select_gt50; nested e2e-tiny-v1"
+    },
+    {
       "id": "abi-hip-aql-kernel-success",
       "category": "abi",
       "state": "unsupported",
       "phase": 11,
       "notes": "Unrestricted HIP launch still unsupported; SoftGPU-registered ISA kernels may succeed"
+    },
+    {
+      "id": "abi-hsa-executable-load",
+      "category": "abi",
+      "state": "verified-unit",
+      "phase": "hip-load",
+      "notes": "code_object_reader + executable load/freeze/symbol for SoftGPU gfx1201 agent .text; SoftGPU CC"
     },
     {
       "id": "isa-gfx1201-execution",

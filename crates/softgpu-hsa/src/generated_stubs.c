@@ -523,80 +523,11 @@ hsa_status_t HSA_API hsa_isa_iterate_wavefronts(
 }
 
 /* auto-stub */
-hsa_status_t HSA_API hsa_code_object_reader_create_from_file(
-    hsa_file_t file,
-    hsa_code_object_reader_t *code_object_reader)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_code_object_reader_create_from_memory(
-    const void *code_object,
-    size_t size,
-    hsa_code_object_reader_t *code_object_reader)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_code_object_reader_destroy(
-    hsa_code_object_reader_t code_object_reader)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_executable_create_alt(
-    hsa_profile_t profile,
-    hsa_default_float_rounding_mode_t default_float_rounding_mode,
-    const char *options,
-    hsa_executable_t *executable)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_executable_destroy(
-    hsa_executable_t executable)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
 hsa_status_t HSA_API hsa_executable_load_program_code_object(
     hsa_executable_t executable,
     hsa_code_object_reader_t code_object_reader,
     const char *options,
     hsa_loaded_code_object_t *loaded_code_object)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_executable_load_agent_code_object(
-    hsa_executable_t executable,
-    hsa_agent_t agent,
-    hsa_code_object_reader_t code_object_reader,
-    const char *options,
-    hsa_loaded_code_object_t *loaded_code_object)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_executable_freeze(
-    hsa_executable_t executable,
-    const char *options)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_executable_get_info(
-    hsa_executable_t executable,
-    hsa_executable_info_t attribute,
-    void *value)
 {
   return HSA_STATUS_ERROR;
 }
@@ -648,25 +579,6 @@ hsa_status_t HSA_API hsa_executable_validate_alt(
 }
 
 /* auto-stub */
-hsa_status_t HSA_API hsa_executable_get_symbol_by_name(
-    hsa_executable_t executable,
-    const char *symbol_name,
-    const hsa_agent_t *agent,
-    hsa_executable_symbol_t *symbol)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
-hsa_status_t HSA_API hsa_executable_symbol_get_info(
-    hsa_executable_symbol_t executable_symbol,
-    hsa_executable_symbol_info_t attribute,
-    void *value)
-{
-  return HSA_STATUS_ERROR;
-}
-
-/* auto-stub */
 hsa_status_t HSA_API hsa_executable_iterate_agent_symbols(
     hsa_executable_t executable,
     hsa_agent_t agent,
@@ -690,4 +602,4 @@ hsa_status_t HSA_API hsa_executable_iterate_program_symbols(
   return HSA_STATUS_ERROR;
 }
 
-/* generated stub count: 78 */
+/* generated stub count: 68 */

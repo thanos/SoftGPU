@@ -929,3 +929,224 @@ pub unsafe extern "C" fn hsa_queue_store_read_index_screlease(
 ) {
     unsafe { hsa_queue_store_read_index_relaxed(queue, value) }
 }
+
+// --- SoftGPU v0.8: code object reader + executable subset ---
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_code_object_reader_create_from_memory(
+    bytes: *const core::ffi::c_void,
+    size: usize,
+    code_object_reader: *mut hsa_code_object_reader_t,
+) -> hsa_status_t {
+    catch_status(|| {
+        if bytes.is_null() || code_object_reader.is_null() || size == 0 {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        let slice = unsafe { core::slice::from_raw_parts(bytes as *const u8, size) };
+        match runtime::with_runtime(|rt| rt.code_object_reader_create_from_memory(slice)) {
+            Ok(Ok(id)) => {
+                unsafe { (*code_object_reader).handle = id };
+                HSA_STATUS_SUCCESS
+            }
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_code_object_reader_create_from_file(
+    file: libc_c_int,
+    code_object_reader: *mut hsa_code_object_reader_t,
+) -> hsa_status_t {
+    // SoftGPU: no libc file descriptor path on all hosts; fail closed.
+    let _ = (file, code_object_reader);
+    HSA_STATUS_ERROR
+}
+
+/// Minimal C int alias without libc dependency on all targets.
+type libc_c_int = i32;
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_code_object_reader_destroy(
+    code_object_reader: hsa_code_object_reader_t,
+) -> hsa_status_t {
+    catch_status(|| {
+        match runtime::with_runtime(|rt| rt.code_object_reader_destroy(code_object_reader.handle)) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_executable_create_alt(
+    _profile: hsa_profile_t,
+    _default_float_rounding_mode: hsa_default_float_rounding_mode_t,
+    _options: *const core::ffi::c_char,
+    executable: *mut hsa_executable_t,
+) -> hsa_status_t {
+    catch_status(|| {
+        if executable.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match runtime::with_runtime(|rt| rt.executable_create()) {
+            Ok(Ok(id)) => {
+                unsafe { (*executable).handle = id };
+                HSA_STATUS_SUCCESS
+            }
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_executable_destroy(executable: hsa_executable_t) -> hsa_status_t {
+    catch_status(
+        || match runtime::with_runtime(|rt| rt.executable_destroy(executable.handle)) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        },
+    )
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_executable_load_agent_code_object(
+    executable: hsa_executable_t,
+    _agent: hsa_agent_t,
+    code_object_reader: hsa_code_object_reader_t,
+    _options: *const core::ffi::c_char,
+    _loaded_code_object: *mut hsa_loaded_code_object_t,
+) -> hsa_status_t {
+    catch_status(|| {
+        match runtime::with_runtime(|rt| {
+            rt.executable_load_agent_code_object(executable.handle, code_object_reader.handle)
+        }) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_executable_freeze(
+    executable: hsa_executable_t,
+    _options: *const core::ffi::c_char,
+) -> hsa_status_t {
+    catch_status(
+        || match runtime::with_runtime(|rt| rt.executable_freeze(executable.handle)) {
+            Ok(Ok(())) => HSA_STATUS_SUCCESS,
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        },
+    )
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_executable_get_symbol_by_name(
+    executable: hsa_executable_t,
+    symbol_name: *const core::ffi::c_char,
+    _agent: *const hsa_agent_t,
+    symbol: *mut hsa_executable_symbol_t,
+) -> hsa_status_t {
+    catch_status(|| {
+        if symbol_name.is_null() || symbol.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        let cstr = unsafe { std::ffi::CStr::from_ptr(symbol_name) };
+        let Ok(name) = cstr.to_str() else {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        };
+        match runtime::with_runtime(|rt| rt.executable_get_symbol_by_name(executable.handle, name))
+        {
+            Ok(Ok(id)) => {
+                unsafe { (*symbol).handle = id };
+                HSA_STATUS_SUCCESS
+            }
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_executable_symbol_get_info(
+    executable_symbol: hsa_executable_symbol_t,
+    attribute: hsa_executable_symbol_info_t,
+    value: *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if value.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match runtime::with_runtime(|rt| {
+            rt.executable_symbol_info(executable_symbol.handle).cloned()
+        }) {
+            Ok(Ok(sym)) => match attribute {
+                HSA_EXECUTABLE_SYMBOL_INFO_TYPE => write_u32(value, HSA_SYMBOL_KIND_KERNEL),
+                HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH => write_u32(value, sym.name.len() as u32),
+                HSA_EXECUTABLE_SYMBOL_INFO_NAME => write_c_string64(value, &sym.name),
+                HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_OBJECT => write_u64(value, sym.kernel_object),
+                HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_SIZE => {
+                    write_u32(value, sym.kernarg_segment_size)
+                }
+                HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_ALIGNMENT => {
+                    write_u32(value, sym.kernarg_segment_align)
+                }
+                HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_GROUP_SEGMENT_SIZE => {
+                    write_u32(value, sym.group_segment_size)
+                }
+                HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_PRIVATE_SEGMENT_SIZE => {
+                    write_u32(value, sym.private_segment_size)
+                }
+                _ => HSA_STATUS_ERROR_INVALID_ARGUMENT,
+            },
+            Ok(Err(err)) => map_runtime_error(err),
+            Err(err) => map_runtime_error(err),
+        }
+    })
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn hsa_executable_get_info(
+    executable: hsa_executable_t,
+    attribute: hsa_executable_info_t,
+    value: *mut core::ffi::c_void,
+) -> hsa_status_t {
+    catch_status(|| {
+        if value.is_null() {
+            return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+        match attribute {
+            HSA_EXECUTABLE_INFO_STATE => {
+                match runtime::with_runtime(|rt| rt.executable_is_frozen(executable.handle)) {
+                    Ok(Ok(frozen)) => write_u32(
+                        value,
+                        if frozen {
+                            HSA_EXECUTABLE_STATE_FROZEN
+                        } else {
+                            HSA_EXECUTABLE_STATE_UNFROZEN
+                        },
+                    ),
+                    Ok(Err(err)) => map_runtime_error(err),
+                    Err(err) => map_runtime_error(err),
+                }
+            }
+            _ => HSA_STATUS_ERROR_INVALID_ARGUMENT,
+        }
+    })
+}
