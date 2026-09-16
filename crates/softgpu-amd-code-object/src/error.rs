@@ -24,6 +24,7 @@ pub enum CodeObjectError {
     UnsupportedMetadataVersion { major: u32, minor: u32 },
     UnsupportedTarget { target: String },
     LimitExceeded { detail: String },
+    Unsupported { detail: String },
 }
 
 impl fmt::Display for CodeObjectError {
@@ -47,6 +48,7 @@ impl fmt::Display for CodeObjectError {
             }
             Self::UnsupportedTarget { target } => write!(f, "unsupported target '{target}'"),
             Self::LimitExceeded { detail } => write!(f, "limit exceeded: {detail}"),
+            Self::Unsupported { detail } => write!(f, "unsupported: {detail}"),
         }
     }
 }
@@ -80,6 +82,7 @@ mod tests {
                 target: "gfx000".into(),
             },
             CodeObjectError::LimitExceeded { detail: "l".into() },
+            CodeObjectError::Unsupported { detail: "u".into() },
         ];
         for err in cases {
             let s = err.to_string();

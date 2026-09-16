@@ -7,6 +7,51 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-16
+
+### Added
+
+- HSA executable subset: `hsa_code_object_reader_*`, `hsa_executable_create_alt` /
+  load_agent / freeze / get_symbol_by_name / symbol_get_info / get_info.
+- SoftGPU agent image load: gfx1201 metadata + `.text` extract
+  (`softgpu-amd-code-object::load_agent_image`), fixture
+  `fixture_tiny_add_with_text`.
+- SoftGPU CC launch for loaded SoftGPU artifacts; AQL
+  `softgpu_kernel_success` via executable→kernel_object bridge.
+- Host gate `phase_hip_load`; ROCm helper
+  `environments/rocm-x86_64/run-phase-hip-load.sh`.
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-hip-load`.
+- Workspace package version → `0.8.0`.
+
+### Notes
+
+- SoftGPU fixtures use SoftGPU CC (`s[4:5]` kernarg). Arbitrary hipcc `.text`
+  may still trap until ISA grows; optional hipcc compile is inspect-only.
+- Unrestricted HIP / rocBLAS / hardware differential remain unsupported (v0.9).
+
+## [0.7.0] — 2026-09-16
+
+### Added
+
+- Broader SoftGPU gfx1201 compute ISA subset `softgpu-gfx1201-compute-v2`
+  (SOPC/SOPK/branches, richer SOP1/SOP2, VOP1/VOP2/VOPC) with llvm-mc goldens.
+- SoftGPU builtins `clamp64` and `select_gt50` (host differential + `run-kernel`).
+- Nested Phase 11 `softgpu-gfx1201-e2e-tiny-v1` / `tiny_add` remains supported.
+- Living gap map updates in [`docs/ISA-gap-analysis.md`](docs/ISA-gap-analysis.md).
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-isa-v2`.
+- Workspace package version → `0.7.0`.
+
+### Notes
+
+- HSA executable / HIP module load still stubbed (target of v0.8.0).
+- Unrestricted HIP launch and hardware differential remain unsupported (v0.9 / Phase 12).
+
 ## [0.6.0] — 2026-09-16
 
 ### Added
@@ -129,7 +174,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Queues, AQL, kernels, and `hipGetDeviceCount > 0` remain **unsupported** / out of scope for 0.1.0.
 - Fidelity claimed: **ABI** (see README and `docs/status.md`).
 
-[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/thanos/SoftGPU/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/thanos/SoftGPU/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/thanos/SoftGPU/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/thanos/SoftGPU/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/thanos/SoftGPU/compare/v0.3.0...v0.4.0

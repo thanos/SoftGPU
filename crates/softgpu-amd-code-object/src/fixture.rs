@@ -6,35 +6,55 @@ use std::collections::BTreeMap;
 
 /// Build a minimal little-endian ELF64 ET_DYN with one `SHT_NOTE` metadata payload.
 pub fn build_code_object_with_metadata(msgpack_desc: &[u8]) -> Vec<u8> {
-    // Layout:
-    // [0, 64)            ELF header
-    // [64, 64+note)      .note section bytes
-    // [aligned)          section headers: null, .note, .shstrtab
-    // [..]               .shstrtab
+    build_code_object_with_metadata_and_text(msgpack_desc, None)
+}
 
+/// SoftGPU llvm-mc `tiny_add` `.text` (duplicated for fixture independence).
+const TINY_ADD_TEXT_FIXTURE: &[u8] = &[
+    0x02, 0x20, 0x00, 0xf4, 0x00, 0x00, 0x00, 0xf8, 0x82, 0x20, 0x00, 0xf4, 0x08, 0x00, 0x00, 0xf8,
+    0x00, 0x00, 0x89, 0xbf, 0x82, 0x00, 0x02, 0x30, 0x00, 0x00, 0x05, 0xee, 0x02, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x89, 0xbf, 0x81, 0x04, 0x04, 0x4a, 0x02, 0x80, 0x06, 0xee,
+    0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb0, 0xbf,
+];
+
+/// Build ELF64 with metadata note and optional `.text` bytes (SoftGPU executable fixtures).
+pub fn build_code_object_with_metadata_and_text(
+    msgpack_desc: &[u8],
+    text: Option<&[u8]>,
+) -> Vec<u8> {
     let note_payload = encode_note(NOTE_OWNER_AMDGPU, NT_AMDGPU_METADATA, msgpack_desc);
-    let shstrtab = b"\0.note\0.shstrtab\0";
+    let has_text = text.map(|t| !t.is_empty()).unwrap_or(false);
+    let shstrtab: &[u8] = if has_text {
+        b"\0.note\0.text\0.shstrtab\0"
+    } else {
+        b"\0.note\0.shstrtab\0"
+    };
 
     let ehdr_size = 64usize;
     let note_off = ehdr_size;
     let note_size = note_payload.len();
-    let shstr_off = align8(note_off + note_size);
+    let text_off = align8(note_off + note_size);
+    let text_size = text.map(|t| t.len()).unwrap_or(0);
+    let shstr_off = if has_text {
+        align8(text_off + text_size)
+    } else {
+        text_off
+    };
     let shstr_size = shstrtab.len();
     let shoff = align8(shstr_off + shstr_size);
     let shentsize = 64usize;
-    let shnum = 3u16; // null, note, shstrtab
-    let shstrndx = 2u16;
+    let shnum = if has_text { 4u16 } else { 3u16 };
+    let shstrndx = if has_text { 3u16 } else { 2u16 };
 
     let mut buf = vec![0u8; shoff + shentsize * shnum as usize];
 
-    // ELF header
     buf[0..4].copy_from_slice(&[0x7f, b'E', b'L', b'F']);
-    buf[4] = 2; // ELFCLASS64
-    buf[5] = 1; // ELFDATA2LSB
-    buf[6] = 1; // EV_CURRENT
-    write_u16(&mut buf, 16, 3); // ET_DYN
-    write_u16(&mut buf, 18, 0xe0); // EM_AMDGPU (224)
-    write_u32(&mut buf, 20, 1); // EV_CURRENT
+    buf[4] = 2;
+    buf[5] = 1;
+    buf[6] = 1;
+    write_u16(&mut buf, 16, 3);
+    write_u16(&mut buf, 18, 0xe0);
+    write_u32(&mut buf, 20, 1);
     write_u64(&mut buf, 40, shoff as u64);
     write_u16(&mut buf, 54, ehdr_size as u16);
     write_u16(&mut buf, 58, shentsize as u16);
@@ -42,27 +62,47 @@ pub fn build_code_object_with_metadata(msgpack_desc: &[u8]) -> Vec<u8> {
     write_u16(&mut buf, 62, shstrndx);
 
     buf[note_off..note_off + note_size].copy_from_slice(&note_payload);
+    if has_text {
+        let t = text.unwrap();
+        buf[text_off..text_off + text_size].copy_from_slice(t);
+    }
     buf[shstr_off..shstr_off + shstr_size].copy_from_slice(shstrtab);
 
-    // section 0: null
-    // section 1: .note
     write_section(
         &mut buf,
         shoff + shentsize,
-        1, // name off ".note"
-        7, // SHT_NOTE
+        1,
+        7,
         note_off as u64,
         note_size as u64,
     );
-    // section 2: .shstrtab
-    write_section(
-        &mut buf,
-        shoff + shentsize * 2,
-        7, // name off ".shstrtab"
-        3, // SHT_STRTAB
-        shstr_off as u64,
-        shstr_size as u64,
-    );
+    if has_text {
+        write_section(
+            &mut buf,
+            shoff + shentsize * 2,
+            7,
+            1,
+            text_off as u64,
+            text_size as u64,
+        );
+        write_section(
+            &mut buf,
+            shoff + shentsize * 3,
+            13,
+            3,
+            shstr_off as u64,
+            shstr_size as u64,
+        );
+    } else {
+        write_section(
+            &mut buf,
+            shoff + shentsize * 2,
+            7,
+            3,
+            shstr_off as u64,
+            shstr_size as u64,
+        );
+    }
 
     buf
 }
@@ -100,6 +140,41 @@ pub fn fixture_tiny_add_gfx1201() -> Vec<u8> {
         )],
     );
     build_code_object_with_metadata(&meta)
+}
+
+/// SoftGPU executable fixture: metadata + llvm-mc `tiny_add` `.text`.
+pub fn fixture_tiny_add_with_text() -> Vec<u8> {
+    let meta = amdhsa_metadata(
+        (1, 2),
+        "amdgcn-amd-amdhsa--gfx1201",
+        vec![kernel(
+            "tiny_add",
+            "tiny_add.kd",
+            16,
+            8,
+            0,
+            0,
+            vec![
+                arg(
+                    Some("a"),
+                    Some("float*"),
+                    0,
+                    8,
+                    "global_buffer",
+                    Some("global"),
+                ),
+                arg(
+                    Some("b"),
+                    Some("float*"),
+                    8,
+                    8,
+                    "global_buffer",
+                    Some("global"),
+                ),
+            ],
+        )],
+    );
+    build_code_object_with_metadata_and_text(&meta, Some(TINY_ADD_TEXT_FIXTURE))
 }
 
 /// Multiple kernels + group/private segment sizes.

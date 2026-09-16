@@ -7,6 +7,7 @@
 pub mod agent;
 pub mod aql;
 pub mod error;
+pub mod executable;
 pub mod fidelity;
 pub mod handle;
 pub mod memory;
@@ -24,6 +25,7 @@ pub use aql::{
     PACKET_TYPE_BARRIER_OR,
 };
 pub use error::{Error, ErrorCategory, Result};
+pub use executable::{CodeObjectReader, ExecutableSymbol, SoftGpuExecutable};
 pub use fidelity::FidelityLevel;
 pub use handle::{HandleKind, PackedHandle};
 pub use memory::{AllocationMeta, MemorySpace, MemoryViewKind};
@@ -39,4 +41,4 @@ pub use trace::{TraceEvent, TraceLog, TraceSink};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Active roadmap phase label for this crate revision.
-pub const ACTIVE_PHASE: &str = "phase-11";
+pub const ACTIVE_PHASE: &str = "phase-hip-load";

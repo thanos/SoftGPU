@@ -1,10 +1,10 @@
-//! SoftGPU disassembler for Phase 10/11 named subsets.
+//! SoftGPU disassembler for `softgpu-gfx1201-compute-v2`.
 
 use crate::decode::{decode_at, decode_word};
 use crate::error::Result;
-use crate::inst::{Inst, ScalarEnc};
+use crate::inst::{Inst, ScalarEnc, SopkOp};
 
-/// Disassemble one word (SALU / VOP2 single-word forms).
+/// Disassemble one word (single-word forms).
 pub fn disasm_word(word: u32, pc: u32) -> Result<String> {
     let inst = decode_word(word, pc)?;
     Ok(format_inst(&inst))
@@ -22,11 +22,30 @@ fn format_inst(inst: &Inst) -> String {
         Inst::SEndPgm => "s_endpgm".to_string(),
         Inst::SSleep { simm16 } => format!("s_sleep {simm16}"),
         Inst::SWaitCnt { simm16 } => format!("s_waitcnt {simm16}"),
-        Inst::SMovB32 { sdst, ssrc0 } => {
-            format!("s_mov_b32 {}, {}", fmt_dst(sdst), fmt_src(ssrc0))
+        Inst::SCbranch { simm16, .. } => {
+            let name = inst.mnemonic();
+            let off = simm16 as i16;
+            format!("{name} {off}")
         }
-        Inst::SAddCoU32 { sdst, ssrc0, ssrc1 } => format!(
-            "s_add_co_u32 {}, {}, {}",
+        Inst::SCmp { ssrc0, ssrc1, .. } => {
+            format!("{} {}, {}", inst.mnemonic(), fmt_src(ssrc0), fmt_src(ssrc1))
+        }
+        Inst::Sopk { op, sdst, simm16 } => {
+            let imm = match op {
+                SopkOp::MovkI32 | SopkOp::AddkCoI32 | SopkOp::MulkI32 => {
+                    format!("0x{simm16:x}")
+                }
+            };
+            format!("{} {}, {imm}", inst.mnemonic(), fmt_dst(sdst))
+        }
+        Inst::Sop1 { sdst, ssrc0, .. } => {
+            format!("{} {}, {}", inst.mnemonic(), fmt_dst(sdst), fmt_src(ssrc0))
+        }
+        Inst::Sop2 {
+            sdst, ssrc0, ssrc1, ..
+        } => format!(
+            "{} {}, {}, {}",
+            inst.mnemonic(),
             fmt_dst(sdst),
             fmt_src(ssrc0),
             fmt_src(ssrc1)
@@ -41,23 +60,34 @@ fn format_inst(inst: &Inst) -> String {
             sdst + 1,
             sbase + 1
         ),
-        Inst::VLshlRevB32E32 {
+        Inst::Vop1 { vdst, src0_enc, .. } => {
+            format!("{} v{vdst}, {}", inst.mnemonic(), fmt_src_enc(src0_enc))
+        }
+        Inst::Vop2 {
+            op,
             vdst,
             src0_enc,
             src1,
             ..
-        } => format!(
-            "v_lshlrev_b32_e32 v{vdst}, {}, v{src1}",
-            fmt_vop2_src0(src0_enc)
-        ),
-        Inst::VAddNcU32E32 {
-            vdst,
-            src0_enc,
-            src1,
-            ..
-        } => format!(
-            "v_add_nc_u32_e32 v{vdst}, {}, v{src1}",
-            fmt_vop2_src0(src0_enc)
+        } => {
+            use crate::inst::Vop2Op;
+            if matches!(op, Vop2Op::CndmaskB32) {
+                format!(
+                    "v_cndmask_b32_e32 v{vdst}, {}, v{src1}, vcc_lo",
+                    fmt_src_enc(src0_enc)
+                )
+            } else {
+                format!(
+                    "{} v{vdst}, {}, v{src1}",
+                    inst.mnemonic(),
+                    fmt_src_enc(src0_enc)
+                )
+            }
+        }
+        Inst::Vopc { src0_enc, src1, .. } => format!(
+            "{} vcc_lo, {}, v{src1}",
+            inst.mnemonic(),
+            fmt_src_enc(src0_enc)
         ),
         Inst::GlobalLoadB32 {
             vdst, vaddr, saddr, ..
@@ -82,27 +112,23 @@ fn fmt_dst(enc: ScalarEnc) -> String {
 }
 
 fn fmt_src(enc: ScalarEnc) -> String {
-    let e = enc.0 as usize;
-    if e < 106 {
-        return format!("s{e}");
-    }
-    if (128..=192).contains(&e) {
-        return format!("{}", e - 128);
-    }
-    if e == 193 {
-        return "-1".to_string();
-    }
-    format!("/*enc:0x{:02x}*/", enc.0)
+    fmt_src_enc(enc.0 as u16)
 }
 
-fn fmt_vop2_src0(enc: u16) -> String {
-    if (128..=192).contains(&enc) {
-        format!("{}", enc - 128)
-    } else if enc == 193 {
-        "-1".to_string()
-    } else {
-        format!("/*src0:0x{enc:x}*/")
+fn fmt_src_enc(enc: u16) -> String {
+    if enc < 106 {
+        return format!("s{enc}");
     }
+    if (128..=192).contains(&enc) {
+        return format!("{}", enc - 128);
+    }
+    if enc == 193 {
+        return "-1".to_string();
+    }
+    if (256..512).contains(&enc) {
+        return format!("v{}", enc - 256);
+    }
+    format!("/*src:0x{enc:x}*/")
 }
 
 #[cfg(test)]
@@ -118,5 +144,6 @@ mod tests {
             disasm_word(0x8000_0201, 0).unwrap(),
             "s_add_co_u32 s0, s1, s2"
         );
+        assert_eq!(disasm_word(0xbf06_0100, 0).unwrap(), "s_cmp_eq_u32 s0, s1");
     }
 }

@@ -1,29 +1,36 @@
-//! Sourced gfx1201 decoder (Phase 10 SALU + Phase 11 e2e tiny).
+//! Sourced gfx1201 decoder (`softgpu-gfx1201-compute-v2`).
 //!
 //! Multi-word layouts confirmed against llvm-mc goldens
-//! (`goldens/llvm-mc-gfx1201.json`, access 2026-09-16) and AMDGPUUsage.
+//! (`goldens/llvm-mc-gfx1201.json`) and AMDGPUUsage.
 
 use crate::error::{Result, TrapKind};
-use crate::inst::{Inst, ScalarEnc};
+use crate::inst::{
+    Inst, SBranchCond, SCmpOp, ScalarEnc, Sop1Op, Sop2Op, SopkOp, Vop1Op, Vop2Op, VopcOp,
+};
 
-/// SOPP encoding key: bits 31:23 == 0x17F → high byte pattern `0xBF`.
+/// SOPP encoding key: bits 31:23 == 0x17F.
 const SOPP_ENC_HI: u32 = 0x17F;
-/// SOP1 encoding key: bits 31:23 == 0x17D → high byte pattern `0xBE`.
+/// SOPC encoding key: bits 31:23 == 0x17E.
+const SOPC_ENC_HI: u32 = 0x17E;
+/// SOP1 encoding key: bits 31:23 == 0x17D.
 const SOP1_ENC_HI: u32 = 0x17D;
 /// SOP2 encoding key: bits 31:30 == 0b10.
 const SOP2_ENC_TOP: u32 = 0b10;
+/// SOPK encoding key: bits 31:28 == 0xB.
+const SOPK_ENC_TOP: u32 = 0xB;
+/// VOP1 encoding: bits 31:25 == 0x3F → high byte 0x7E.
+const VOP1_ENC: u32 = 0x3F;
+/// VOPC encoding: bits 31:25 == 0x3E → high byte 0x7C.
+const VOPC_ENC: u32 = 0x3E;
 
 const SOPP_OP_NOP: u32 = 0;
 const SOPP_OP_SLEEP: u32 = 3;
 const SOPP_OP_WAITCNT: u32 = 9;
+const SOPP_OP_CBRANCH_SCC0: u32 = 0x21;
+const SOPP_OP_CBRANCH_SCC1: u32 = 0x22;
+const SOPP_OP_CBRANCH_EXECZ: u32 = 0x25;
+const SOPP_OP_CBRANCH_EXECNZ: u32 = 0x26;
 const SOPP_OP_ENDPGM: u32 = 0x30;
-const SOP1_OP_MOV_B32: u32 = 0;
-const SOP2_OP_ADD_CO_U32: u32 = 0;
-
-/// VOP2 opcode field bits 30:25 observed for `v_lshlrev_b32_e32` (llvm-mc).
-const VOP2_OP_LSHLREV_B32: u32 = 0x18;
-/// VOP2 opcode field bits 30:25 for `v_add_nc_u32_e32`.
-const VOP2_OP_ADD_NC_U32: u32 = 0x25;
 
 fn bits(word: u32, hi: u32, lo: u32) -> u32 {
     debug_assert!(hi >= lo && hi < 32);
@@ -35,21 +42,34 @@ pub fn decode_at(code: &[u8], pc: u32) -> Result<Inst> {
     decode_at_inner(code, pc).map_err(|t| t.to_error())
 }
 
-/// Decode a single already-fetched word (SALU-only convenience; traps on multi-word).
+/// Decode a single already-fetched word (traps on multi-word forms).
 pub fn decode_word(word: u32, pc: u32) -> Result<Inst> {
     let enc9 = bits(word, 31, 23);
     if enc9 == SOPP_ENC_HI {
         return decode_sopp(word, pc).map_err(|t| t.to_error());
     }
+    if enc9 == SOPC_ENC_HI {
+        return decode_sopc(word, pc).map_err(|t| t.to_error());
+    }
     if enc9 == SOP1_ENC_HI {
         return decode_sop1(word, pc).map_err(|t| t.to_error());
+    }
+    if bits(word, 31, 28) == SOPK_ENC_TOP {
+        return decode_sopk(word, pc).map_err(|t| t.to_error());
     }
     if bits(word, 31, 30) == SOP2_ENC_TOP {
         return decode_sop2(word, pc).map_err(|t| t.to_error());
     }
-    // VOP2 single-word
-    if let Ok(inst) = try_decode_vop2(word, pc) {
-        return Ok(inst);
+    if bits(word, 31, 25) == VOP1_ENC {
+        return decode_vop1(word, pc).map_err(|t| t.to_error());
+    }
+    if bits(word, 31, 25) == VOPC_ENC {
+        return decode_vopc(word, pc).map_err(|t| t.to_error());
+    }
+    if bits(word, 31, 31) == 0 {
+        if let Ok(inst) = try_decode_vop2(word, pc) {
+            return Ok(inst);
+        }
     }
     Err(TrapKind::UnsupportedEncoding { word, pc }.to_error())
 }
@@ -70,16 +90,29 @@ fn decode_at_inner(code: &[u8], pc: u32) -> std::result::Result<Inst, TrapKind> 
     if enc9 == SOPP_ENC_HI {
         return decode_sopp(word0, pc);
     }
+    if enc9 == SOPC_ENC_HI {
+        return decode_sopc(word0, pc);
+    }
     if enc9 == SOP1_ENC_HI {
         return decode_sop1(word0, pc);
+    }
+    if bits(word0, 31, 28) == SOPK_ENC_TOP {
+        return decode_sopk(word0, pc);
     }
     if bits(word0, 31, 30) == SOP2_ENC_TOP {
         return decode_sop2(word0, pc);
     }
 
-    // SMEM: high byte 0xF4, second word high byte 0xF8 (llvm-mc gfx1201 s_load_b64).
+    // SMEM: high byte 0xF4
     if (word0 >> 24) == 0xf4 {
         return decode_smem_load_b64(code, pc, word0);
+    }
+
+    if bits(word0, 31, 25) == VOP1_ENC {
+        return decode_vop1(word0, pc);
+    }
+    if bits(word0, 31, 25) == VOPC_ENC {
+        return decode_vopc(word0, pc);
     }
 
     // VOP2 (bit31 clear for e32 forms SoftGPU claims).
@@ -105,6 +138,22 @@ fn decode_sopp(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
         SOPP_OP_SLEEP => Ok(Inst::SSleep { simm16 }),
         SOPP_OP_WAITCNT => Ok(Inst::SWaitCnt { simm16 }),
         SOPP_OP_ENDPGM => Ok(Inst::SEndPgm),
+        SOPP_OP_CBRANCH_SCC0 => Ok(Inst::SCbranch {
+            cond: SBranchCond::Scc0,
+            simm16,
+        }),
+        SOPP_OP_CBRANCH_SCC1 => Ok(Inst::SCbranch {
+            cond: SBranchCond::Scc1,
+            simm16,
+        }),
+        SOPP_OP_CBRANCH_EXECZ => Ok(Inst::SCbranch {
+            cond: SBranchCond::ExecZ,
+            simm16,
+        }),
+        SOPP_OP_CBRANCH_EXECNZ => Ok(Inst::SCbranch {
+            cond: SBranchCond::ExecNz,
+            simm16,
+        }),
         _ => Err(TrapKind::UnsupportedOpcode {
             format: "SOPP",
             op,
@@ -114,19 +163,82 @@ fn decode_sopp(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
     }
 }
 
+fn decode_sopc(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
+    let op = bits(word, 22, 16);
+    let ssrc0 = ScalarEnc(bits(word, 7, 0) as u8);
+    let ssrc1 = ScalarEnc(bits(word, 15, 8) as u8);
+    let cmp = match op {
+        0x00 => SCmpOp::EqI32,
+        0x04 => SCmpOp::LtI32,
+        0x06 => SCmpOp::EqU32,
+        0x07 => SCmpOp::LgU32,
+        0x08 => SCmpOp::GtU32,
+        0x09 => SCmpOp::GeU32,
+        0x0b => SCmpOp::LeU32,
+        _ => {
+            return Err(TrapKind::UnsupportedOpcode {
+                format: "SOPC",
+                op,
+                word,
+                pc,
+            })
+        }
+    };
+    Ok(Inst::SCmp {
+        op: cmp,
+        ssrc0,
+        ssrc1,
+    })
+}
+
+fn decode_sopk(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
+    let op = bits(word, 27, 23);
+    let sdst = ScalarEnc(bits(word, 22, 16) as u8);
+    let simm16 = bits(word, 15, 0) as u16;
+    let sopk = match op {
+        0x00 => SopkOp::MovkI32,
+        0x0f => SopkOp::AddkCoI32,
+        0x10 => SopkOp::MulkI32,
+        _ => {
+            return Err(TrapKind::UnsupportedOpcode {
+                format: "SOPK",
+                op,
+                word,
+                pc,
+            })
+        }
+    };
+    Ok(Inst::Sopk {
+        op: sopk,
+        sdst,
+        simm16,
+    })
+}
+
 fn decode_sop1(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
     let op = bits(word, 15, 8);
     let sdst = ScalarEnc(bits(word, 22, 16) as u8);
     let ssrc0 = ScalarEnc(bits(word, 7, 0) as u8);
-    match op {
-        SOP1_OP_MOV_B32 => Ok(Inst::SMovB32 { sdst, ssrc0 }),
-        _ => Err(TrapKind::UnsupportedOpcode {
-            format: "SOP1",
-            op,
-            word,
-            pc,
-        }),
-    }
+    let sop1 = match op {
+        0x00 => Sop1Op::MovB32,
+        0x04 => Sop1Op::BrevB32,
+        0x1e => Sop1Op::NotB32,
+        0x20 => Sop1Op::AndSaveexecB32,
+        0x22 => Sop1Op::OrSaveexecB32,
+        _ => {
+            return Err(TrapKind::UnsupportedOpcode {
+                format: "SOP1",
+                op,
+                word,
+                pc,
+            })
+        }
+    };
+    Ok(Inst::Sop1 {
+        op: sop1,
+        sdst,
+        ssrc0,
+    })
 }
 
 fn decode_sop2(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
@@ -134,15 +246,30 @@ fn decode_sop2(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
     let sdst = ScalarEnc(bits(word, 22, 16) as u8);
     let ssrc1 = ScalarEnc(bits(word, 15, 8) as u8);
     let ssrc0 = ScalarEnc(bits(word, 7, 0) as u8);
-    match op {
-        SOP2_OP_ADD_CO_U32 => Ok(Inst::SAddCoU32 { sdst, ssrc0, ssrc1 }),
-        _ => Err(TrapKind::UnsupportedOpcode {
-            format: "SOP2",
-            op,
-            word,
-            pc,
-        }),
-    }
+    let sop2 = match op {
+        0x00 => Sop2Op::AddCoU32,
+        0x01 => Sop2Op::SubCoU32,
+        0x13 => Sop2Op::MinU32,
+        0x15 => Sop2Op::MaxU32,
+        0x16 => Sop2Op::AndB32,
+        0x18 => Sop2Op::OrB32,
+        0x1a => Sop2Op::XorB32,
+        0x2c => Sop2Op::MulI32,
+        _ => {
+            return Err(TrapKind::UnsupportedOpcode {
+                format: "SOP2",
+                op,
+                word,
+                pc,
+            })
+        }
+    };
+    Ok(Inst::Sop2 {
+        op: sop2,
+        sdst,
+        ssrc0,
+        ssrc1,
+    })
 }
 
 fn decode_smem_load_b64(code: &[u8], pc: u32, word0: u32) -> std::result::Result<Inst, TrapKind> {
@@ -153,22 +280,9 @@ fn decode_smem_load_b64(code: &[u8], pc: u32, word0: u32) -> std::result::Result
     if (word1 >> 24) != 0xf8 {
         return Err(TrapKind::UnsupportedEncoding { word: word0, pc });
     }
-    // SoftGPU field map from llvm-mc differentials (Article 11/12 provenance):
-    // sbase = 2 * bits[5:0]; sdst = bits[12:6]; offset = word1 low 21 bits.
     let sbase = (bits(word0, 5, 0) * 2) as u8;
     let sdst = bits(word0, 12, 6) as u8;
     let offset = bits(word1, 20, 0);
-    // SoftGPU Phase 11 only claims s_load_b64 (not other SMEM ops).
-    // Opcode discrimination: require bits that match observed s_load_b64 forms
-    // (word0 & 0x00FF0000) == 0 for our goldens.
-    if bits(word0, 23, 13) != 0 {
-        // Allow only the forms we observed; unknown SMEM → trap.
-        // Actually bits 23:13 may include opcode — for s_load_b64 llvm-mc
-        // forms, middle bits were 0 in word0 except sdst/sbase fields.
-        // Recheck: 0xF4002002 → bits 23:13 = bits of 0x002 = small.
-        // Use opcode nibble from AMDGPUUsage: SoftGPU accepts when
-        // (word0 >> 13) & 0x7F matches load_b64. Observed OP region = 0.
-    }
     Ok(Inst::SLoadB64 {
         sdst,
         sbase,
@@ -177,33 +291,92 @@ fn decode_smem_load_b64(code: &[u8], pc: u32, word0: u32) -> std::result::Result
     })
 }
 
+fn decode_vop1(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
+    let op = bits(word, 16, 9);
+    let src0_enc = bits(word, 8, 0) as u16;
+    let vdst = bits(word, 24, 17) as u8;
+    let vop1 = match op {
+        0x01 => Vop1Op::MovB32,
+        0x37 => Vop1Op::NotB32,
+        0x38 => Vop1Op::BfrevB32,
+        _ => {
+            return Err(TrapKind::UnsupportedOpcode {
+                format: "VOP1",
+                op,
+                word,
+                pc,
+            })
+        }
+    };
+    Ok(Inst::Vop1 {
+        op: vop1,
+        vdst,
+        src0_enc,
+        size: 4,
+    })
+}
+
+fn decode_vopc(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
+    let op = bits(word, 24, 17);
+    let src0_enc = bits(word, 8, 0) as u16;
+    let src1 = bits(word, 16, 9) as u8;
+    let vopc = match op {
+        0x49 => VopcOp::LtU32,
+        0x4a => VopcOp::EqU32,
+        0x4b => VopcOp::LeU32,
+        0x4c => VopcOp::GtU32,
+        0x4d => VopcOp::NeU32,
+        0x4e => VopcOp::GeU32,
+        _ => {
+            return Err(TrapKind::UnsupportedOpcode {
+                format: "VOPC",
+                op,
+                word,
+                pc,
+            })
+        }
+    };
+    Ok(Inst::Vopc {
+        op: vopc,
+        src0_enc,
+        src1,
+        size: 4,
+    })
+}
+
 fn try_decode_vop2(word: u32, pc: u32) -> std::result::Result<Inst, TrapKind> {
-    // VOP2 encoding bit 31 == 0 for e32; high nibble varies by opcode.
-    // SoftGPU recognizes by opcode field bits 30:25.
     let op = bits(word, 30, 25);
     let src0_enc = bits(word, 8, 0) as u16;
     let src1 = bits(word, 16, 9) as u8;
     let vdst = bits(word, 24, 17) as u8;
-    match op {
-        VOP2_OP_LSHLREV_B32 => Ok(Inst::VLshlRevB32E32 {
-            vdst,
-            src0_enc,
-            src1,
-            size: 4,
-        }),
-        VOP2_OP_ADD_NC_U32 => Ok(Inst::VAddNcU32E32 {
-            vdst,
-            src0_enc,
-            src1,
-            size: 4,
-        }),
-        _ => Err(TrapKind::UnsupportedOpcode {
-            format: "VOP2",
-            op,
-            word,
-            pc,
-        }),
-    }
+    let vop2 = match op {
+        0x01 => Vop2Op::CndmaskB32,
+        0x13 => Vop2Op::MinU32,
+        0x14 => Vop2Op::MaxU32,
+        0x18 => Vop2Op::LshlRevB32,
+        0x19 => Vop2Op::LshrRevB32,
+        0x1a => Vop2Op::AshrRevI32,
+        0x1b => Vop2Op::AndB32,
+        0x1c => Vop2Op::OrB32,
+        0x1d => Vop2Op::XorB32,
+        0x25 => Vop2Op::AddNcU32,
+        0x26 => Vop2Op::SubNcU32,
+        _ => {
+            return Err(TrapKind::UnsupportedOpcode {
+                format: "VOP2",
+                op,
+                word,
+                pc,
+            })
+        }
+    };
+    Ok(Inst::Vop2 {
+        op: vop2,
+        vdst,
+        src0_enc,
+        src1,
+        size: 4,
+    })
 }
 
 fn decode_global(code: &[u8], pc: u32, word0: u32) -> std::result::Result<Inst, TrapKind> {
@@ -216,10 +389,6 @@ fn decode_global(code: &[u8], pc: u32, word0: u32) -> std::result::Result<Inst, 
         len: code.len(),
     })?;
 
-    // SoftGPU field map from llvm-mc differentials:
-    // load:  w0=0xEE05xxxx  saddr in low bits; w1=vdst; w2=vaddr
-    // store: w0=0xEE06xxxx  saddr in low bits; bit15 of w0 set (0x8000);
-    //        w1 has vdata in bits 22:15; w2=vaddr
     let op_hi = (word0 >> 16) & 0xff;
     let saddr = (word0 & 0xff) as u8;
     if op_hi == 0x05 {
@@ -233,7 +402,6 @@ fn decode_global(code: &[u8], pc: u32, word0: u32) -> std::result::Result<Inst, 
         });
     }
     if op_hi == 0x06 && (word0 & 0x8000) != 0 {
-        // vdata in bits 31:23 of word1 (llvm-mc differentials: v2→0x01000000, v5→0x02800000).
         let vdata = bits(word1, 31, 23) as u8;
         let vaddr = (word2 & 0xff) as u8;
         return Ok(Inst::GlobalStoreB32 {
@@ -263,6 +431,13 @@ mod tests {
             Inst::SNop { simm16: 0 }
         );
         assert_eq!(decode_word(0xbfb0_0000, 0).unwrap(), Inst::SEndPgm);
+        assert!(matches!(
+            decode_word(0xbf06_0100, 0).unwrap(),
+            Inst::SCmp {
+                op: SCmpOp::EqU32,
+                ..
+            }
+        ));
     }
 
     #[test]

@@ -93,11 +93,14 @@ struct QueueSlot {
     queue: Option<SoftGpuQueue>,
 }
 
-/// SoftGPU-registered ISA kernel image (Phase 11).
+/// SoftGPU-registered ISA kernel image (Phase 11 / v0.8 executable load).
 #[derive(Debug, Clone)]
 pub struct RegisteredIsaKernel {
     pub name: String,
     pub code: Vec<u8>,
+    pub kernarg_segment_size: u32,
+    pub group_segment_size: u32,
+    pub private_segment_size: u32,
 }
 
 /// SoftGPU runtime state.
@@ -114,9 +117,18 @@ pub struct Runtime {
     next_queue_id: u64,
     /// Captured validated dispatches for offline replay (owned bytes).
     dispatch_captures: Vec<DispatchDescriptor>,
-    /// kernel_object handle → SoftGPU ISA image (Phase 11).
+    /// kernel_object handle → SoftGPU ISA image (Phase 11 / v0.8).
     isa_kernels: HashMap<u64, RegisteredIsaKernel>,
     next_kernel_object: u64,
+    /// SoftGPU code-object readers (v0.8).
+    code_object_readers: HashMap<u64, crate::executable::CodeObjectReader>,
+    next_reader_id: u64,
+    /// SoftGPU executables (v0.8).
+    executables: HashMap<u64, crate::executable::SoftGpuExecutable>,
+    next_executable_id: u64,
+    /// executable_symbol handle → (executable_id, symbol_index).
+    executable_symbols: HashMap<u64, (u64, usize)>,
+    next_symbol_id: u64,
     trace: SharedTrace,
 }
 
@@ -137,6 +149,12 @@ impl Runtime {
             dispatch_captures: Vec::new(),
             isa_kernels: HashMap::new(),
             next_kernel_object: 1,
+            code_object_readers: HashMap::new(),
+            next_reader_id: 1,
+            executables: HashMap::new(),
+            next_executable_id: 1,
+            executable_symbols: HashMap::new(),
+            next_symbol_id: 1,
             trace: SharedTrace::new(512),
         })
     }
@@ -146,6 +164,18 @@ impl Runtime {
         &mut self,
         name: impl Into<String>,
         code: Vec<u8>,
+    ) -> Result<u64, RuntimeError> {
+        self.register_isa_kernel_ex(name, code, 0, 0, 0)
+    }
+
+    /// Register ISA kernel with segment sizes (HSA symbol_get_info).
+    pub fn register_isa_kernel_ex(
+        &mut self,
+        name: impl Into<String>,
+        code: Vec<u8>,
+        kernarg_segment_size: u32,
+        group_segment_size: u32,
+        private_segment_size: u32,
     ) -> Result<u64, RuntimeError> {
         if code.is_empty() {
             return Err(RuntimeError::InvalidArgument);
@@ -157,6 +187,9 @@ impl Runtime {
             RegisteredIsaKernel {
                 name: name.into(),
                 code,
+                kernarg_segment_size,
+                group_segment_size,
+                private_segment_size,
             },
         );
         Ok(id)
@@ -164,11 +197,176 @@ impl Runtime {
 
     /// Register the SoftGPU llvm-mc `tiny_add` kernel image.
     pub fn register_builtin_tiny_add(&mut self) -> Result<u64, RuntimeError> {
-        self.register_isa_kernel("tiny_add", TINY_ADD_TEXT.to_vec())
+        self.register_isa_kernel_ex("tiny_add", TINY_ADD_TEXT.to_vec(), 16, 0, 0)
     }
 
     pub fn lookup_isa_kernel(&self, kernel_object: u64) -> Option<&RegisteredIsaKernel> {
         self.isa_kernels.get(&kernel_object)
+    }
+
+    pub fn code_object_reader_create_from_memory(
+        &mut self,
+        bytes: &[u8],
+    ) -> Result<u64, RuntimeError> {
+        if bytes.is_empty() {
+            return Err(RuntimeError::InvalidArgument);
+        }
+        let id = self.next_reader_id;
+        self.next_reader_id = self.next_reader_id.saturating_add(1);
+        self.code_object_readers.insert(
+            id,
+            crate::executable::CodeObjectReader {
+                bytes: bytes.to_vec(),
+            },
+        );
+        Ok(id)
+    }
+
+    pub fn code_object_reader_destroy(&mut self, reader_id: u64) -> Result<(), RuntimeError> {
+        if self.code_object_readers.remove(&reader_id).is_none() {
+            return Err(RuntimeError::InvalidArgument);
+        }
+        Ok(())
+    }
+
+    pub fn executable_create(&mut self) -> Result<u64, RuntimeError> {
+        let id = self.next_executable_id;
+        self.next_executable_id = self.next_executable_id.saturating_add(1);
+        self.executables.insert(
+            id,
+            crate::executable::SoftGpuExecutable {
+                frozen: false,
+                symbols: Vec::new(),
+            },
+        );
+        Ok(id)
+    }
+
+    pub fn executable_destroy(&mut self, exec_id: u64) -> Result<(), RuntimeError> {
+        let Some(exec) = self.executables.remove(&exec_id) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        self.executable_symbols
+            .retain(|_, (eid, _)| *eid != exec_id);
+        for sym in exec.symbols {
+            self.isa_kernels.remove(&sym.kernel_object);
+        }
+        Ok(())
+    }
+
+    pub fn executable_load_agent_code_object(
+        &mut self,
+        exec_id: u64,
+        reader_id: u64,
+    ) -> Result<(), RuntimeError> {
+        let frozen = self
+            .executables
+            .get(&exec_id)
+            .map(|e| e.frozen)
+            .ok_or(RuntimeError::InvalidArgument)?;
+        if frozen {
+            return Err(RuntimeError::InvalidArgument);
+        }
+        let bytes = self
+            .code_object_readers
+            .get(&reader_id)
+            .map(|r| r.bytes.clone())
+            .ok_or(RuntimeError::InvalidArgument)?;
+        let kernels = crate::executable::parse_agent_kernels(&bytes)
+            .map_err(|_| RuntimeError::InvalidArgument)?;
+        let mut symbols = Vec::new();
+        for k in kernels {
+            let ko = self.register_isa_kernel_ex(
+                k.name.clone(),
+                k.text,
+                k.kernarg_segment_size,
+                k.group_segment_size,
+                k.private_segment_size,
+            )?;
+            symbols.push(crate::executable::ExecutableSymbol {
+                name: k.name,
+                symbol: k.symbol,
+                kernel_object: ko,
+                kernarg_segment_size: k.kernarg_segment_size,
+                kernarg_segment_align: k.kernarg_segment_align.max(1),
+                group_segment_size: k.group_segment_size,
+                private_segment_size: k.private_segment_size,
+                launch_abi: k.launch_abi,
+            });
+        }
+        let exec = self
+            .executables
+            .get_mut(&exec_id)
+            .ok_or(RuntimeError::InvalidArgument)?;
+        exec.symbols.extend(symbols);
+        Ok(())
+    }
+
+    pub fn executable_freeze(&mut self, exec_id: u64) -> Result<(), RuntimeError> {
+        let Some(exec) = self.executables.get_mut(&exec_id) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        if exec.symbols.is_empty() {
+            return Err(RuntimeError::InvalidArgument);
+        }
+        exec.frozen = true;
+        Ok(())
+    }
+
+    pub fn executable_get_symbol_by_name(
+        &mut self,
+        exec_id: u64,
+        name: &str,
+    ) -> Result<u64, RuntimeError> {
+        let Some(exec) = self.executables.get(&exec_id) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        if !exec.frozen {
+            return Err(RuntimeError::InvalidArgument);
+        }
+        let idx_map = crate::executable::index_symbols(&exec.symbols);
+        let Some(&sym_idx) = idx_map.get(name) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        let id = self.next_symbol_id;
+        self.next_symbol_id = self.next_symbol_id.saturating_add(1);
+        self.executable_symbols.insert(id, (exec_id, sym_idx));
+        Ok(id)
+    }
+
+    pub fn executable_symbol_kernel_object(&self, symbol_id: u64) -> Result<u64, RuntimeError> {
+        let Some(&(exec_id, sym_idx)) = self.executable_symbols.get(&symbol_id) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        let Some(exec) = self.executables.get(&exec_id) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        let Some(sym) = exec.symbols.get(sym_idx) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        Ok(sym.kernel_object)
+    }
+
+    pub fn executable_symbol_info(
+        &self,
+        symbol_id: u64,
+    ) -> Result<&crate::executable::ExecutableSymbol, RuntimeError> {
+        let Some(&(exec_id, sym_idx)) = self.executable_symbols.get(&symbol_id) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        let Some(exec) = self.executables.get(&exec_id) else {
+            return Err(RuntimeError::InvalidArgument);
+        };
+        exec.symbols
+            .get(sym_idx)
+            .ok_or(RuntimeError::InvalidArgument)
+    }
+
+    pub fn executable_is_frozen(&self, exec_id: u64) -> Result<bool, RuntimeError> {
+        self.executables
+            .get(&exec_id)
+            .map(|e| e.frozen)
+            .ok_or(RuntimeError::InvalidArgument)
     }
 
     /// Owned packet captures suitable for offline `aql::replay_dispatch`.

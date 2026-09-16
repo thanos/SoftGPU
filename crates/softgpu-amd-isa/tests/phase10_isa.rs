@@ -5,7 +5,7 @@
 use softgpu_amd_isa::provenance::{GOLDEN_ACCESS_DATE, SUBSET_NAME, TARGET_ARCH};
 use softgpu_amd_isa::{
     decode_word, disasm_word, run_salu, step_salu, words_to_code, Arch, Inst, MachineState,
-    ScalarEnc, StepOutcome, WaveSize,
+    ScalarEnc, Sop1Op, Sop2Op, StepOutcome, WaveSize,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -73,7 +73,8 @@ fn bitfield_sopp_sop1_sop2() {
     let mov = decode_word(0xbe85_0003, 0).unwrap();
     assert_eq!(
         mov,
-        Inst::SMovB32 {
+        Inst::Sop1 {
+            op: Sop1Op::MovB32,
             sdst: ScalarEnc(5),
             ssrc0: ScalarEnc(3)
         }
@@ -82,7 +83,8 @@ fn bitfield_sopp_sop1_sop2() {
     let add = decode_word(0x8003_0504, 0).unwrap();
     assert_eq!(
         add,
-        Inst::SAddCoU32 {
+        Inst::Sop2 {
+            op: Sop2Op::AddCoU32,
             sdst: ScalarEnc(3),
             ssrc0: ScalarEnc(4),
             ssrc1: ScalarEnc(5)
@@ -170,7 +172,7 @@ fn fuzz_random_words_never_panic_and_trap_or_decode() {
 
 #[test]
 fn subset_name_and_arch_gate() {
-    assert_eq!(SUBSET_NAME, "softgpu-gfx1201-e2e-tiny-v1");
+    assert_eq!(SUBSET_NAME, "softgpu-gfx1201-compute-v2");
     assert!(Arch::parse("gfx1201").is_ok());
     assert!(Arch::parse("gfx1030").is_err());
 }
