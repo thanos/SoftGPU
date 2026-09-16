@@ -7,22 +7,24 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-## [0.5.0] — 2026-09-15
+## [0.5.0] — 2026-09-16
 
 ### Added
 
 - Phase 9: SoftGPU debugger (`softgpu-debug-trace-v1`), breakpoints, state snapshots, hostile JSONL reader, `schedule_seed` wave-order exploration, race minimize; `softgpu debug-functional`; Article 10; `phase9_debug` tests.
+- Coverage-focused tests for ELF fail-closed paths, Phase 9 debug edges, and CLI smoke (`debug-functional`, `--sanitize collect`, `check-config`).
 
 ### Changed
 
 - `ACTIVE_PHASE` → `phase-9`.
-- Workspace version → `0.5.0`.
+- Workspace / crates.io package version → `0.5.0` (all SoftGPU crates via `[workspace.package]`).
 
 ### Notes
 
 - Debugger never invents SFIR→source line maps (provenance string only).
 - HIP/HSA AQL kernel success remains **unsupported**.
 - gfx1201 ISA execution remains **unsupported** (Phase 10+).
+- Tag `v0.5.0` must match root `Cargo.toml` `[workspace.package] version = "0.5.0"` (release workflow gate).
 
 ## [0.4.0] — 2026-09-15
 
