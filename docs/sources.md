@@ -161,7 +161,7 @@ Facts SoftGPU depends on must be recorded here with provenance. Secondary blogs 
 
 ---
 
-## LLVM AMDGPU encodings (Phase 10)
+## LLVM AMDGPU encodings (Phases 10–11)
 
 | | |
 | --- | --- |

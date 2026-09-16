@@ -1,23 +1,19 @@
-//! SoftGPU disassembler for the Phase 10 SALU subset.
-//!
-//! Mnemonics aim to match `llvm-objdump -d -mtriple=amdgcn-amd-amdhsa -mcpu=gfx1201`
-//! for the supported subset (verified against llvm-mc goldens).
+//! SoftGPU disassembler for Phase 10/11 named subsets.
 
-use crate::decode::decode_word;
+use crate::decode::{decode_at, decode_word};
 use crate::error::Result;
 use crate::inst::{Inst, ScalarEnc};
-use crate::word::fetch_word;
 
-/// Disassemble one word at `pc` into an llvm-objdump-like text form.
+/// Disassemble one word (SALU / VOP2 single-word forms).
 pub fn disasm_word(word: u32, pc: u32) -> Result<String> {
     let inst = decode_word(word, pc)?;
     Ok(format_inst(&inst))
 }
 
-/// Disassemble the instruction at `pc` in `code`.
+/// Disassemble the instruction at `pc` in `code` (supports multi-word).
 pub fn disasm_at(code: &[u8], pc: u32) -> Result<String> {
-    let word = fetch_word(code, pc)?;
-    disasm_word(word, pc)
+    let inst = decode_at(code, pc)?;
+    Ok(format_inst(&inst))
 }
 
 fn format_inst(inst: &Inst) -> String {
@@ -34,6 +30,49 @@ fn format_inst(inst: &Inst) -> String {
             fmt_dst(sdst),
             fmt_src(ssrc0),
             fmt_src(ssrc1)
+        ),
+        Inst::SLoadB64 {
+            sdst,
+            sbase,
+            offset,
+            ..
+        } => format!(
+            "s_load_b64 s[{sdst}:{}], s[{sbase}:{}], 0x{offset:x}",
+            sdst + 1,
+            sbase + 1
+        ),
+        Inst::VLshlRevB32E32 {
+            vdst,
+            src0_enc,
+            src1,
+            ..
+        } => format!(
+            "v_lshlrev_b32_e32 v{vdst}, {}, v{src1}",
+            fmt_vop2_src0(src0_enc)
+        ),
+        Inst::VAddNcU32E32 {
+            vdst,
+            src0_enc,
+            src1,
+            ..
+        } => format!(
+            "v_add_nc_u32_e32 v{vdst}, {}, v{src1}",
+            fmt_vop2_src0(src0_enc)
+        ),
+        Inst::GlobalLoadB32 {
+            vdst, vaddr, saddr, ..
+        } => format!(
+            "global_load_b32 v{vdst}, v{vaddr}, s[{saddr}:{}]",
+            saddr + 1
+        ),
+        Inst::GlobalStoreB32 {
+            vaddr,
+            vdata,
+            saddr,
+            ..
+        } => format!(
+            "global_store_b32 v{vaddr}, v{vdata}, s[{saddr}:{}]",
+            saddr + 1
         ),
     }
 }
@@ -54,6 +93,16 @@ fn fmt_src(enc: ScalarEnc) -> String {
         return "-1".to_string();
     }
     format!("/*enc:0x{:02x}*/", enc.0)
+}
+
+fn fmt_vop2_src0(enc: u16) -> String {
+    if (128..=192).contains(&enc) {
+        format!("{}", enc - 128)
+    } else if enc == 193 {
+        "-1".to_string()
+    } else {
+        format!("/*src0:0x{enc:x}*/")
+    }
 }
 
 #[cfg(test)]

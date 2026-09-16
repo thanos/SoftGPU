@@ -61,10 +61,10 @@ cargo run --locked -- debug-functional --builtin tiny_add --break-step 5
 
 ## Next gate
 
-Phase 11 — first end-to-end gfx1201 kernel (after Phase 10 ISA foundation).
+Phase 12 — R9700 hardware conformance (after Phase 11 e2e tiny kernel).
 
 ## References
 
-- [`docs/functional-path.md`](../functional-path.md)
-- `crates/softgpu-functional/src/debug.rs`
-- `crates/softgpu-functional/tests/phase9_debug.rs`
+- [`docs/isa-path.md`](../isa-path.md)
+- `crates/softgpu-amd-isa/`
+- Article 12

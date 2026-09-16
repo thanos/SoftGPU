@@ -5,8 +5,8 @@ use softgpu::profile::DeviceProfile;
 use softgpu::{ACTIVE_PHASE, VERSION};
 use softgpu_amd_code_object::inspect_path;
 use softgpu_amd_isa::{
-    disasm_word, parse_hex_word, run, words_to_code, Arch, MachineState, WaveSize, SUBSET_NAME,
-    TARGET_ARCH,
+    disasm_word, parse_hex_word, run_salu, run_tiny_add_1d, tiny_add_host_ref, words_to_code, Arch,
+    GlobalArena as IsaGlobalArena, IsaMemory, MachineState, WaveSize, SUBSET_NAME, TARGET_ARCH,
 };
 use softgpu_functional::kernels::{kernarg_two_ptrs, tiny_add};
 use softgpu_functional::{
@@ -41,7 +41,7 @@ fn run_cli(args: Vec<String>) -> Result<()> {
     if args.is_empty() {
         return Err(Error::new(
             ErrorCategory::Config,
-            "missing command; expected one of: help, version, info, validate-profile, check-config, inspect-code-object, run-functional, debug-functional, decode-isa, run-isa",
+            "missing command; expected one of: help, version, info, validate-profile, check-config, inspect-code-object, run-functional, debug-functional, decode-isa, run-isa, run-kernel",
         )
         .with_remediation("run `softgpu help`"));
     }
@@ -113,6 +113,7 @@ fn run_cli(args: Vec<String>) -> Result<()> {
         "debug-functional" => debug_functional(&args[1..]),
         "decode-isa" => decode_isa(&args[1..]),
         "run-isa" => run_isa(&args[1..]),
+        "run-kernel" => run_kernel(&args[1..]),
         "check-config" => check_config(&args[1..]),
         other => Err(
             Error::new(ErrorCategory::Config, format!("unknown command '{other}'"))
@@ -504,7 +505,7 @@ fn run_isa(args: &[String]) -> Result<()> {
     let wave_size = WaveSize::parse(wave).map_err(map_isa_err)?;
     let code = words_to_code(&words);
     let mut st = MachineState::new(Arch::Gfx1201, wave_size);
-    let steps = run(&mut st, &code, 10_000).map_err(map_isa_err)?;
+    let steps = run_salu(&mut st, &code, 10_000).map_err(map_isa_err)?;
     println!(
         "{{\"fidelity\":\"architectural_isa\",\"arch\":\"{TARGET_ARCH}\",\"subset\":\"{SUBSET_NAME}\",\"steps\":{steps},\"halted\":{},\"scc\":{},\"sgpr0\":{},\"sgpr1\":{},\"sgpr2\":{},\"note\":\"Phase 10 SALU subset only; not HIP AQL kernel success\"}}",
         st.halted,
@@ -513,6 +514,93 @@ fn run_isa(args: &[String]) -> Result<()> {
         st.sgpr[1],
         st.sgpr[2]
     );
+    Ok(())
+}
+
+fn run_kernel(args: &[String]) -> Result<()> {
+    // softgpu run-kernel --builtin tiny_add [--n 64]
+    let mut builtin = None;
+    let mut n: u32 = 64;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--builtin" => {
+                i += 1;
+                builtin = args.get(i).map(|s| s.as_str());
+            }
+            "--n" => {
+                i += 1;
+                n = args
+                    .get(i)
+                    .ok_or_else(|| Error::new(ErrorCategory::Config, "--n requires a value"))?
+                    .parse()
+                    .map_err(|_| Error::new(ErrorCategory::Config, "invalid --n"))?;
+            }
+            other => {
+                return Err(Error::new(
+                    ErrorCategory::Config,
+                    format!("unknown run-kernel argument '{other}'"),
+                )
+                .with_remediation("usage: softgpu run-kernel --builtin tiny_add [--n 64]"));
+            }
+        }
+        i += 1;
+    }
+    match builtin {
+        Some("tiny_add") => {}
+        Some(other) => {
+            return Err(Error::new(
+                ErrorCategory::Unsupported,
+                format!("unsupported kernel builtin '{other}'"),
+            )
+            .with_remediation("Phase 11 supports --builtin tiny_add only"));
+        }
+        None => {
+            return Err(Error::new(
+                ErrorCategory::Config,
+                "run-kernel requires --builtin tiny_add",
+            ));
+        }
+    }
+    if n == 0 || n > 4096 {
+        return Err(Error::new(
+            ErrorCategory::Config,
+            "run-kernel --n must be in 1..=4096",
+        ));
+    }
+
+    let mut mem = IsaGlobalArena::new(0, 0x10000);
+    let kernarg = 0x1000u64;
+    let a_addr = 0x2000u64;
+    let b_addr = 0x3000u64;
+    mem.store_u64(kernarg, a_addr).map_err(map_isa_err)?;
+    mem.store_u64(kernarg + 8, b_addr).map_err(map_isa_err)?;
+    let mut host_a = vec![0i32; n as usize];
+    let mut host_b = vec![0i32; n as usize];
+    for (i, v) in host_a.iter_mut().enumerate() {
+        *v = i as i32;
+        mem.store_u32(a_addr + (i as u64) * 4, *v as u32)
+            .map_err(map_isa_err)?;
+    }
+    tiny_add_host_ref(&host_a, &mut host_b);
+    let steps = run_tiny_add_1d(&mut mem, kernarg, n, WaveSize::Wave32).map_err(map_isa_err)?;
+    let mut ok = true;
+    for (i, expected) in host_b.iter().enumerate() {
+        let got = mem.load_u32(b_addr + (i as u64) * 4).map_err(map_isa_err)? as i32;
+        if got != *expected {
+            ok = false;
+            break;
+        }
+    }
+    println!(
+        "{{\"fidelity\":\"architectural_isa\",\"arch\":\"{TARGET_ARCH}\",\"subset\":\"{SUBSET_NAME}\",\"kernel\":\"tiny_add\",\"n\":{n},\"steps\":{steps},\"host_diff_ok\":{ok},\"contract\":\"softgpu_kernel_success\",\"note\":\"llvm-mc gfx1201 text; SoftGPU e2e tiny calling convention\"}}"
+    );
+    if !ok {
+        return Err(Error::new(
+            ErrorCategory::Validation,
+            "ISA tiny_add diverged from host reference",
+        ));
+    }
     Ok(())
 }
 
@@ -609,7 +697,7 @@ fn check_config(args: &[String]) -> Result<()> {
 fn print_help() {
     println!(
         "\
-softgpu {VERSION} — Phase 10 (gfx1201 ISA foundation)
+softgpu {VERSION} — Phase 11 (first end-to-end gfx1201 tiny kernel)
 
 USAGE:
   softgpu <command> [args]
@@ -620,20 +708,18 @@ COMMANDS:
   info                         Print phase, fidelity policy, and HSA adapter notes
   validate-profile <path>      Validate a device profile JSON document
   check-config KEY=VALUE...    Validate a minimal config surface (negative-test aid)
-  inspect-code-object <path>   Parse AMDGPU ELF metadata (no kernel ISA run)
-  run-functional ...           Execute SoftGPU Functional IR (CPU; not gfx1201 ISA)
-  debug-functional ...         SoftGPU SFIR debugger (breakpoints + JSONL trace)
-  decode-isa <word>...         Disassemble SoftGPU gfx1201 SALU subset words
-  run-isa --words w0,w1,...    Step SoftGPU SALU until s_endpgm (Phase 10)
-
-DECODE-ISA / RUN-ISA:
-  softgpu decode-isa 0xbf800000 0xbe800081
-  softgpu run-isa --words 0xbe800081,0xbe810082,0x80020100,0xbfb00000
+  inspect-code-object <path>   Parse AMDGPU ELF metadata
+  run-functional ...           SoftGPU Functional IR (CPU)
+  debug-functional ...         SoftGPU SFIR debugger
+  decode-isa <word>...         Disassemble SoftGPU gfx1201 subset words
+  run-isa --words w0,w1,...    Step SALU words until s_endpgm
+  run-kernel --builtin tiny_add [--n N]
+                               Run SoftGPU llvm-mc tiny_add (Architectural ISA)
 
 NOTES:
-  Phase 10 claims Architectural ISA only for softgpu-gfx1201-salu-v1.
-  HIP/HSA AQL kernel success remains unsupported (Phase 11).
-  See docs/articles/11-decoding-amdgpu-isa.md.
+  Phase 11 claims Architectural ISA for softgpu-gfx1201-e2e-tiny-v1 and
+  softgpu_kernel_success when a registered ISA kernel is AQL-dispatched with
+  SoftGPU kernarg memory. See docs/articles/12-first-gfx1201-kernel.md.
 "
     );
 }
@@ -645,11 +731,11 @@ fn print_info() {
     println!("fidelity_policy=named-levels-required");
     println!("rocr_hsa_library=softgpu-hsa (memory/signals/queues/AQL + fail-closed stubs)");
     println!("agent_discovery=one-virtual-gpu");
-    println!("feature=KERNEL_DISPATCH (queue+AQL intercept; SFIR functional separate)");
-    println!("aql=diagnostic_complete_no_execution");
+    println!("feature=KERNEL_DISPATCH (queue+AQL; registered SoftGPU ISA kernels may execute)");
+    println!("aql=diagnostic_or_softgpu_kernel_success");
     println!("code_object=amdgpu_metadata_gfx1201_subset");
-    println!("functional=softgpu-sfir-v1_cpu_waves_sanitize_debug_not_gfx1201_isa");
-    println!("isa=softgpu-gfx1201-salu-v1_architectural_subset");
+    println!("functional=softgpu-sfir-v1_cpu_waves_sanitize_debug");
+    println!("isa=softgpu-gfx1201-e2e-tiny-v1_architectural_subset");
     println!("memory=path-c-regions-and-amd-pools");
     println!("msrv=1.85");
     println!("nightly_features=prohibited");

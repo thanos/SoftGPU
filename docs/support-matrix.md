@@ -27,7 +27,8 @@ Allowed cell states: `implemented-unverified`, `verified-unit`, `verified-integr
 | SoftGPU memory/race/barrier sanitizer | `verified-unit` | declared SoftGPU HB subset; Article 9 |
 | SoftGPU debugger / traces / explore | `verified-unit` | softgpu-debug-trace-v1; Article 10 |
 | SoftGPU gfx1201 SALU subset (`softgpu-gfx1201-salu-v1`) | `verified-unit` | Phase 10; llvm-mc goldens; Article 11 |
-| Full gfx1201 ISA / HIP AQL kernel success | `unsupported` | Phase 11+ / not claimed |
+| SoftGPU gfx1201 e2e tiny (`tiny_add`) | `verified-unit` | Phase 11; AQL softgpu_kernel_success; Article 12 |
+| Full gfx1201 ISA / unrestricted HIP launch | `unsupported` | Phase 12+ / not claimed |
 
 ## Profiles
 

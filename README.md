@@ -11,11 +11,11 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **Current tree (Phase 10 on the v0.6 line):** SoftGPU Functional IR through
-> Phase 9 **plus** a narrow, sourced gfx1201 SALU ISA subset
-> (`softgpu-gfx1201-salu-v1`). This is **not** full gfx1201 coverage and **not**
-> HIP AQL kernel success. See [docs/status.md](docs/status.md),
-> [docs/isa-path.md](docs/isa-path.md), and [CHANGELOG.md](CHANGELOG.md).
+> **v0.6.0 — Native gfx1201 preview (Phases 10–11):** SoftGPU Functional IR
+> through Phase 9 **plus** a narrow Architectural ISA path and SoftGPU-registered
+> `tiny_add` AQL success (`softgpu-gfx1201-e2e-tiny-v1`). Not full gfx1201 /
+> unrestricted HIP launch. See [docs/status.md](docs/status.md) and
+> [CHANGELOG.md](CHANGELOG.md).
 
 ## What SoftGPU is (and is not)
 
@@ -54,7 +54,7 @@ Releases are organized around **what a developer can accomplish**. Engineering *
 | **v0.3.0 — Functional execution preview** | Explicit functional input format, basic arithmetic/loads/stores/indexing, deterministic scheduling. **Phase 6** (after the functional-input research gate). |
 | **v0.4.0 — Correctness alpha** | Shared memory, divergence, barriers, selected atomics; memory/race/barrier checks for a declared subset. **Phases 7–8.** Event/replay scaffolding starts with the functional engine, not only at 0.5. |
 | **v0.5.0 — Reproducible debugging beta** | Replay bundles, stepping, state inspection, controlled schedule exploration, failure minimization. **Phase 9.** |
-| **v0.6.0 — Native gfx1201 preview** | Narrow ISA decoder/interpreter, code-object loading, required launch state and instruction families. **Phases 10–11.** Collect hardware observations for each new semantic/instruction family when hardware is available. |
+| **v0.6.0 — Native gfx1201 preview** | Sourced gfx1201 ISA decoder/interpreter (`softgpu-amd-isa`); SoftGPU-registered llvm-mc `tiny_add` with AQL `softgpu_kernel_success` (`softgpu-gfx1201-e2e-tiny-v1`). **Phases 10–11.** Not full gfx1201 / unrestricted HIP launch. Hardware observations when available begin here and consolidate in 0.9. |
 | **v0.9.0 — Hardware-validated RC** | Differential hardware suite, verified profile fields, FP comparison rules, discrepancy tracking. **Phase 12** consolidates earlier evidence. |
 | **v1.0.0 — Supported developer tool** | Reliable install, stable diagnostic contracts, versioned replay/profile formats, documented compatibility and upgrade policy. **Phase 13** plus hardening. |
 
@@ -86,7 +86,7 @@ ROCm integration details and local reproduction (Docker / Apple Container): [env
 crates/softgpu-core/   # handles, runtime, agents, traces, profiles
 crates/softgpu-hsa/    # cdylib HSA adapter (minimal exports)
 crates/softgpu-amd-code-object/  # bounded AMDGPU ELF metadata
-crates/softgpu-amd-isa/          # gfx1201 SALU subset (Phase 10)
+crates/softgpu-amd-isa/          # gfx1201 e2e tiny ISA (Phases 10–11)
 crates/softgpu-functional/       # SoftGPU Functional IR (Phases 6–9)
 src/                   # softgpu CLI
 profiles/              # versioned device profiles with provenance
@@ -105,7 +105,7 @@ docs/                  # architecture, status, sources, ADRs, articles
 | [Dependencies](.github/workflows/dependencies.yml) | `cargo-deny` (licenses, advisories, sources) + Dependabot |
 | [Release](.github/workflows/release.yml) | Tag `vX.Y.Z` → crates.io publish + GitHub Release |
 
-**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.5.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
+**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.6.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
 
 Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/config.toml) linker wrapper (or an equivalent) so the cdylib advertises ELF version **`ROCR_1`** for HIP. Cloning this repo already includes that config.
 
@@ -119,13 +119,13 @@ Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/c
 - [Unsafe / FFI policy](docs/unsafe-ffi-policy.md)
 - [ROCm x86_64 env](environments/rocm-x86_64/README.md) — pinned image; local CI via Docker or Apple Container
 - [ADR-0001](docs/adr/0001-rocr-hsa-substitution-boundary.md) · [ADR-0002](docs/adr/0002-generation-safe-handles.md)
-- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md) · [Article 7](docs/articles/07-emulation-vs-simulation.md) · [Article 8](docs/articles/08-grids-workgroups-waves.md) · [Article 9](docs/articles/09-building-gpu-sanitizers.md) · [Article 10](docs/articles/10-debugging-softgpu-lanes.md) · [Article 11](docs/articles/11-decoding-amdgpu-isa.md)
+- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md) · [Article 7](docs/articles/07-emulation-vs-simulation.md) · [Article 8](docs/articles/08-grids-workgroups-waves.md) · [Article 9](docs/articles/09-building-gpu-sanitizers.md) · [Article 10](docs/articles/10-debugging-softgpu-lanes.md) · [Article 11](docs/articles/11-decoding-amdgpu-isa.md) · [Article 12](docs/articles/12-first-gfx1201-kernel.md)
 - [Article 19 (draft)](docs/articles/19-why-rust-for-software-gpu.md)
 - [Phase 3 concurrency invariants](docs/concurrency-phase3.md)
 - [AQL diagnostic contract](docs/aql-diagnostic-contract.md)
 - [Code-object metadata](docs/code-object.md)
 - [Functional IR path](docs/functional-path.md)
-- [ISA path (Phase 10)](docs/isa-path.md)
+- [ISA path (Phases 10–11)](docs/isa-path.md)
 
 ## License
 

@@ -78,10 +78,11 @@ cargo run --locked -- run-isa --words 0xbe800081,0xbe810082,0x80020100,0xbfb0000
 
 ## Next gate
 
-Phase 11 — first end-to-end gfx1201 kernel through the real dispatch path.
+Phase 11 — first end-to-end SoftGPU gfx1201 tiny kernel (done; see Article 12).
 
 ## References
 
 - [`crates/softgpu-amd-isa`](../../crates/softgpu-amd-isa)
 - [`docs/sources.md`](../sources.md)
 - LLVM AMDGPUUsage: https://llvm.org/docs/AMDGPUUsage.html
+- Article 12: [`12-first-gfx1201-kernel.md`](12-first-gfx1201-kernel.md)

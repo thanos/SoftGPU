@@ -20,7 +20,7 @@ pub use agent::{AgentInfoAttr, AgentKind, VirtualAgent, AGENT_FEATURE_KERNEL_DIS
 pub use aql::{
     golden_kernel_dispatch_1d, parse_kernel_dispatch, parse_supported_packet, replay_dispatch,
     AqlParseError, DispatchDescriptor, KernargClass, PacketType, DIAGNOSTIC_COMPLETE_NO_EXECUTION,
-    DIAGNOSTIC_REJECTED, PACKET_TYPE_AGENT_DISPATCH, PACKET_TYPE_BARRIER_AND,
+    DIAGNOSTIC_REJECTED, KERNEL_SUCCESS, PACKET_TYPE_AGENT_DISPATCH, PACKET_TYPE_BARRIER_AND,
     PACKET_TYPE_BARRIER_OR,
 };
 pub use error::{Error, ErrorCategory, Result};
@@ -31,7 +31,7 @@ pub use profile::{
     CapabilityProvenance, DeviceProfile, ProfileField, ProfileIdentity, SupportState,
 };
 pub use queue::{HsaQueueAbi, PacketObservation, SoftGpuQueue};
-pub use runtime::{PoolInfoAttr, RegionInfoAttr, Runtime, RuntimeError};
+pub use runtime::{PoolInfoAttr, RegionInfoAttr, RegisteredIsaKernel, Runtime, RuntimeError};
 pub use signal::{SignalCondition, SignalWaitOutcome, SoftGpuSignal};
 pub use trace::{TraceEvent, TraceLog, TraceSink};
 
@@ -39,4 +39,4 @@ pub use trace::{TraceEvent, TraceLog, TraceSink};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Active roadmap phase label for this crate revision.
-pub const ACTIVE_PHASE: &str = "phase-10";
+pub const ACTIVE_PHASE: &str = "phase-11";

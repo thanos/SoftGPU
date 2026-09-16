@@ -1,4 +1,4 @@
-# SoftGPU architecture (Phase 10)
+# SoftGPU architecture (Phase 11 / v0.6.0)
 
 ## Long-term stack
 
@@ -28,9 +28,9 @@ AMD code-object frontend + gfx1201 ISA interpreter (narrow subset)
 ```
 
 Phase 0–9 cover contracts through SoftGPU Functional IR debugging.
-Phase 10 adds `softgpu-amd-isa`: a sourced, fail-closed decoder/interpreter for
-the named SALU subset `softgpu-gfx1201-salu-v1` (Architectural ISA fidelity for
-that subset only). End-to-end HIP AQL kernel success remains Phase 11.
+Phase 10–11 add `softgpu-amd-isa`: sourced gfx1201 Architectural ISA for the
+named e2e tiny subset, plus SoftGPU-registered AQL kernel success for that
+image only. Unrestricted HIP launch remains unsupported.
 
 ## Boundaries
 
@@ -74,6 +74,6 @@ Workspace members:
 - `softgpu` — CLI
 - `softgpu-core` — vendor-neutral runtime, handles, agents, traces, profiles, Path C, AQL diagnostic
 - `softgpu-amd-code-object` — bounded ELF64 + AMDHSA metadata inspect
-- `softgpu-amd-isa` — gfx1201 SALU subset decoder/interpreter (Phase 10)
+- `softgpu-amd-isa` — gfx1201 e2e tiny ISA decoder/interpreter (Phases 10–11)
 - `softgpu-functional` — SoftGPU Functional IR (`softgpu-sfir-v1`) CPU executor
 - `softgpu-hsa` — Linux-oriented `cdylib` HSA adapter (`libhsa_runtime64`)

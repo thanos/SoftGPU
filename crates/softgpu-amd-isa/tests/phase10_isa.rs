@@ -4,8 +4,8 @@
 
 use softgpu_amd_isa::provenance::{GOLDEN_ACCESS_DATE, SUBSET_NAME, TARGET_ARCH};
 use softgpu_amd_isa::{
-    decode_word, disasm_word, run, step, words_to_code, Arch, Inst, MachineState, ScalarEnc,
-    StepOutcome, WaveSize,
+    decode_word, disasm_word, run_salu, step_salu, words_to_code, Arch, Inst, MachineState,
+    ScalarEnc, StepOutcome, WaveSize,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -96,14 +96,14 @@ fn reserved_and_invalid_trap_before_corruption() {
     st.sgpr[3] = 0xdead_beef;
     // VALU-ish / unknown encoding
     let code = words_to_code(&[0x1234_5678]);
-    assert!(step(&mut st, &code).is_err());
+    assert!(step_salu(&mut st, &code).is_err());
     assert_eq!(st.sgpr[3], 0xdead_beef);
     assert_eq!(st.pc, 0);
     assert!(!st.halted);
 
     // Known SOPP format, unsupported opcode (OP=1)
     let code = words_to_code(&[0xbf81_0000]);
-    let err = step(&mut st, &code).unwrap_err();
+    let err = step_salu(&mut st, &code).unwrap_err();
     assert!(err.message().contains("SOPP"));
     assert_eq!(st.sgpr[3], 0xdead_beef);
 }
@@ -114,7 +114,7 @@ fn unsupported_operand_traps() {
     // s_mov_b32 s0, enc 0xFF (unsupported)
     let word = 0xbe80_00ff;
     let code = words_to_code(&[word]);
-    let err = step(&mut st, &code).unwrap_err();
+    let err = step_salu(&mut st, &code).unwrap_err();
     assert!(err.message().contains("operand") || err.message().contains("unsupported"));
     assert_eq!(st.sgpr[0], 0);
 }
@@ -124,7 +124,7 @@ fn single_instruction_state_transitions() {
     // Source: llvm-mc word 0xbe800081 = s_mov_b32 s0, 1
     let mut st = MachineState::new(Arch::Gfx1201, WaveSize::Wave32);
     let code = words_to_code(&[0xbe80_0081]);
-    assert_eq!(step(&mut st, &code).unwrap(), StepOutcome::Continued);
+    assert_eq!(step_salu(&mut st, &code).unwrap(), StepOutcome::Continued);
     assert_eq!(st.sgpr[0], 1);
     assert_eq!(st.pc, 4);
 
@@ -133,7 +133,7 @@ fn single_instruction_state_transitions() {
     st.sgpr[1] = 0xffff_ffff;
     st.sgpr[2] = 2;
     let code = words_to_code(&[0x8000_0201]); // s0 = s1 + s2
-    step(&mut st, &code).unwrap();
+    step_salu(&mut st, &code).unwrap();
     assert_eq!(st.sgpr[0], 1);
     assert!(st.scc);
 }
@@ -150,10 +150,10 @@ fn fuzz_random_words_never_panic_and_trap_or_decode() {
         let word = seed;
         let code = words_to_code(&[word]);
         st = snapshot.clone();
-        match step(&mut st, &code) {
+        match step_salu(&mut st, &code) {
             Ok(StepOutcome::Continued) => {
                 // Only known subset may continue; PC must advance.
-                assert_eq!(st.pc, 4);
+                assert!(st.pc >= 4);
             }
             Ok(StepOutcome::Halted) => {
                 assert!(st.halted);
@@ -170,7 +170,7 @@ fn fuzz_random_words_never_panic_and_trap_or_decode() {
 
 #[test]
 fn subset_name_and_arch_gate() {
-    assert_eq!(SUBSET_NAME, "softgpu-gfx1201-salu-v1");
+    assert_eq!(SUBSET_NAME, "softgpu-gfx1201-e2e-tiny-v1");
     assert!(Arch::parse("gfx1201").is_ok());
     assert!(Arch::parse("gfx1030").is_err());
 }
@@ -181,7 +181,7 @@ fn program_mov_add_endpgm() {
     // s_mov_b32 s0, 1; s_mov_b32 s1, 2; s_add_co_u32 s2, s0, s1; s_endpgm
     let code = words_to_code(&[0xbe80_0081, 0xbe81_0082, 0x8002_0100, 0xbfb0_0000]);
     let mut st = MachineState::new(Arch::Gfx1201, WaveSize::Wave32);
-    let n = run(&mut st, &code, 32).unwrap();
+    let n = run_salu(&mut st, &code, 32).unwrap();
     assert_eq!(n, 4);
     assert_eq!(st.sgpr[2], 3);
     assert!(st.halted);

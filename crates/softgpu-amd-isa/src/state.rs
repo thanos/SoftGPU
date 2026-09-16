@@ -86,6 +86,36 @@ impl MachineState {
             .to_error()),
         }
     }
+
+    pub fn read_sgpr_pair(&self, base: u8, pc: u32) -> Result<u64> {
+        let b = base as usize;
+        if b + 1 >= SGPR_COUNT || b % 2 != 0 {
+            return Err(TrapKind::UnsupportedOperand {
+                encoding: base,
+                role: "sgpr_pair",
+                pc,
+            }
+            .to_error());
+        }
+        let lo = self.sgpr[b] as u64;
+        let hi = self.sgpr[b + 1] as u64;
+        Ok(lo | (hi << 32))
+    }
+
+    pub fn write_sgpr_pair(&mut self, base: u8, value: u64, pc: u32) -> Result<()> {
+        let b = base as usize;
+        if b + 1 >= SGPR_COUNT || b % 2 != 0 {
+            return Err(TrapKind::UnsupportedOperand {
+                encoding: base,
+                role: "sgpr_pair",
+                pc,
+            }
+            .to_error());
+        }
+        self.sgpr[b] = value as u32;
+        self.sgpr[b + 1] = (value >> 32) as u32;
+        Ok(())
+    }
 }
 
 enum ScalarValue {
