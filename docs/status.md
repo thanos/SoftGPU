@@ -1,6 +1,6 @@
 # SoftGPU status
 
-**Access date for this revision:** 2026-09-15
+**Access date for this revision:** 2026-09-16
 
 ## What works today?
 
