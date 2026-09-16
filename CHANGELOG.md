@@ -7,6 +7,23 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-15
+
+### Added
+
+- Phase 9: SoftGPU debugger (`softgpu-debug-trace-v1`), breakpoints, state snapshots, hostile JSONL reader, `schedule_seed` wave-order exploration, race minimize; `softgpu debug-functional`; Article 10; `phase9_debug` tests.
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-9`.
+- Workspace version → `0.5.0`.
+
+### Notes
+
+- Debugger never invents SFIR→source line maps (provenance string only).
+- HIP/HSA AQL kernel success remains **unsupported**.
+- gfx1201 ISA execution remains **unsupported** (Phase 10+).
+
 ## [0.4.0] — 2026-09-15
 
 ### Added
@@ -83,7 +100,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Queues, AQL, kernels, and `hipGetDeviceCount > 0` remain **unsupported** / out of scope for 0.1.0.
 - Fidelity claimed: **ABI** (see README and `docs/status.md`).
 
-[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/thanos/SoftGPU/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/thanos/SoftGPU/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/thanos/SoftGPU/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/thanos/SoftGPU/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/thanos/SoftGPU/compare/v0.1.0...v0.2.0

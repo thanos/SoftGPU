@@ -214,6 +214,28 @@ pub fn slice(data: &[u8], off: usize, len: usize) -> Result<&[u8]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixture::fixture_tiny_add_gfx1201;
+
+    fn elf_header(
+        etype: u16,
+        shoff: u64,
+        shentsize: u16,
+        shnum: u16,
+        shstrndx: u16,
+        class: u8,
+        data_enc: u8,
+    ) -> Vec<u8> {
+        let mut d = vec![0u8; 64];
+        d[0..4].copy_from_slice(&ELFMAG);
+        d[4] = class;
+        d[5] = data_enc;
+        d[16..18].copy_from_slice(&etype.to_le_bytes());
+        d[40..48].copy_from_slice(&shoff.to_le_bytes());
+        d[58..60].copy_from_slice(&shentsize.to_le_bytes());
+        d[60..62].copy_from_slice(&shnum.to_le_bytes());
+        d[62..64].copy_from_slice(&shstrndx.to_le_bytes());
+        d
+    }
 
     #[test]
     fn rejects_non_elf() {
@@ -221,5 +243,143 @@ mod tests {
             Elf64File::parse(b"not elf"),
             Err(CodeObjectError::NotElf) | Err(CodeObjectError::Truncated { .. })
         ));
+    }
+
+    #[test]
+    fn rejects_truncated_header_and_bad_class_endian_type() {
+        assert!(matches!(
+            Elf64File::parse(&[0x7f, b'E', b'L', b'F']),
+            Err(CodeObjectError::Truncated { .. })
+        ));
+        let mut h = elf_header(ET_DYN, 0, 64, 0, 0, 1, ELFDATA2LSB);
+        assert!(matches!(
+            Elf64File::parse(&h),
+            Err(CodeObjectError::UnsupportedClass { class: 1 })
+        ));
+        h = elf_header(ET_DYN, 0, 64, 0, 0, ELFCLASS64, 2);
+        assert!(matches!(
+            Elf64File::parse(&h),
+            Err(CodeObjectError::UnsupportedEndian { data: 2 })
+        ));
+        h = elf_header(0, 0, 64, 0, 0, ELFCLASS64, ELFDATA2LSB);
+        assert!(matches!(
+            Elf64File::parse(&h),
+            Err(CodeObjectError::UnsupportedElfType { etype: 0 })
+        ));
+    }
+
+    #[test]
+    fn rejects_bad_shentsize_shnum_and_shstrndx() {
+        let h = elf_header(ET_DYN, 64, 32, 1, 0, ELFCLASS64, ELFDATA2LSB);
+        assert!(matches!(
+            Elf64File::parse(&h),
+            Err(CodeObjectError::BadHeader { .. })
+        ));
+        let h = elf_header(ET_DYN, 64, 64, 300, 0, ELFCLASS64, ELFDATA2LSB);
+        assert!(matches!(
+            Elf64File::parse(&h),
+            Err(CodeObjectError::LimitExceeded { .. })
+        ));
+        // shoff set but buffer too short for section table
+        let h = elf_header(ET_DYN, 64, 64, 2, 0, ELFCLASS64, ELFDATA2LSB);
+        assert!(matches!(
+            Elf64File::parse(&h),
+            Err(CodeObjectError::Truncated { .. })
+        ));
+        // Valid-sized empty table region with bad shstrndx
+        let mut buf = elf_header(ET_DYN, 64, 64, 1, 5, ELFCLASS64, ELFDATA2LSB);
+        buf.resize(64 + 64, 0);
+        assert!(matches!(
+            Elf64File::parse(&buf),
+            Err(CodeObjectError::BadHeader { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_too_large_buffer() {
+        let mut huge = vec![0u8; MAX_CODE_OBJECT_BYTES + 1];
+        huge[0..4].copy_from_slice(&ELFMAG);
+        huge[4] = ELFCLASS64;
+        huge[5] = ELFDATA2LSB;
+        assert!(matches!(
+            Elf64File::parse(&huge),
+            Err(CodeObjectError::TooLarge { .. })
+        ));
+    }
+
+    #[test]
+    fn fixture_sections_names_and_empty_bytes() {
+        let bytes = fixture_tiny_add_gfx1201();
+        let elf = Elf64File::parse(&bytes).unwrap();
+        assert!(elf.shnum > 0);
+        let notes = elf.note_sections().unwrap();
+        assert!(!notes.is_empty());
+        let (_i, sec) = notes[0];
+        let name = elf.section_name(&sec).unwrap();
+        assert!(!name.is_empty());
+        let payload = elf.section_bytes(&sec).unwrap();
+        assert!(!payload.is_empty());
+
+        let empty = Elf64Section {
+            name_off: 0,
+            sh_type: 0,
+            offset: 0,
+            size: 0,
+        };
+        assert!(elf.section_bytes(&empty).unwrap().is_empty());
+
+        assert!(matches!(
+            elf.section(elf.shnum as usize),
+            Err(CodeObjectError::SectionFault { .. })
+        ));
+    }
+
+    #[test]
+    fn slice_and_readers_fail_closed() {
+        assert!(matches!(
+            slice(&[1, 2, 3], 2, 4),
+            Err(CodeObjectError::Truncated { .. })
+        ));
+        assert!(matches!(
+            slice(&[1, 2, 3], usize::MAX - 1, 4),
+            Err(CodeObjectError::Truncated { .. })
+        ));
+        assert!(read_u16(&[0], 0).is_err());
+        assert!(read_u32(&[0, 1], 0).is_err());
+        assert!(read_u64(&[0; 4], 0).is_err());
+    }
+
+    #[test]
+    fn section_name_oob_and_null_strtab() {
+        // One section header that is also the shstrtab, but name_off past end.
+        let mut buf = elf_header(ET_REL, 64, 64, 1, 0, ELFCLASS64, ELFDATA2LSB);
+        buf.resize(128, 0);
+        // sh_type = SHT_STRTAB (3) so name lookup doesn't early-return empty
+        buf[64 + 4..64 + 8].copy_from_slice(&3u32.to_le_bytes());
+        // offset/size of strtab: point at bytes 120..128 (8 bytes of zeros)
+        buf[64 + 24..64 + 32].copy_from_slice(&120u64.to_le_bytes());
+        buf[64 + 32..64 + 40].copy_from_slice(&8u64.to_le_bytes());
+        let elf = Elf64File::parse(&buf).unwrap();
+        let sec = Elf64Section {
+            name_off: 100, // past 8-byte strtab
+            sh_type: 1,
+            offset: 0,
+            size: 0,
+        };
+        assert!(matches!(
+            elf.section_name(&sec),
+            Err(CodeObjectError::SectionFault { .. })
+        ));
+        // sh_type 0 → empty name shortcut
+        let nulltab = Elf64Section {
+            name_off: 0,
+            sh_type: 1,
+            offset: 0,
+            size: 0,
+        };
+        // Force shstrtab type 0 by rewriting
+        buf[64 + 4..64 + 8].copy_from_slice(&0u32.to_le_bytes());
+        let elf = Elf64File::parse(&buf).unwrap();
+        assert_eq!(elf.section_name(&nulltab).unwrap(), "");
     }
 }

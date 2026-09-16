@@ -11,8 +11,8 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **Active — Phase 8:** SoftGPU Functional IR sanitizers (shadow memory and a
-> declared SoftGPU happens-before subset). This is **not** gfx1201 ISA emulation.
+> **Active — Phase 9:** SoftGPU Functional IR debugger (traces, breakpoints,
+> seeded schedule exploration). This is **not** gfx1201 ISA emulation.
 > See [docs/status.md](docs/status.md),
 > [docs/functional-path.md](docs/functional-path.md), and [CHANGELOG.md](CHANGELOG.md).
 
@@ -101,7 +101,7 @@ docs/                  # architecture, status, sources, ADRs, articles
 | [Dependencies](.github/workflows/dependencies.yml) | `cargo-deny` (licenses, advisories, sources) + Dependabot |
 | [Release](.github/workflows/release.yml) | Tag `vX.Y.Z` → crates.io publish + GitHub Release |
 
-**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.4.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
+**Release secrets:** set repository secret `CARGO_REGISTRY_TOKEN` (crates.io API token) before tagging `v0.5.0`. Coveralls uses `GITHUB_TOKEN` via the Coveralls GitHub App (enable the repo on [coveralls.io](https://coveralls.io)).
 
 Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/config.toml) linker wrapper (or an equivalent) so the cdylib advertises ELF version **`ROCR_1`** for HIP. Cloning this repo already includes that config.
 

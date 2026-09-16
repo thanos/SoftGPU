@@ -12,20 +12,21 @@
 | SoftGPU Functional IR (`softgpu-sfir-v1`) CPU execution | host | **Functional** | `phase6_functional` + `run-functional` |
 | SoftGPU waves/lanes, group memory, barriers, selected atomics | host | **Functional** | `phase7_semantics` |
 | SoftGPU memory/race/barrier sanitizer (declared subset) | host | **Sanitized** | `phase8_sanitize` |
+| SoftGPU debugger / traces / seeded schedule explore | host | **Functional** | `phase9_debug` |
 | gfx1201 ISA execution / HIP AQL kernel success | — | — | **unsupported** |
 
 ## Active phase
 
-**Phase 8** — Memory, race, and barrier sanitizers on SoftGPU Functional IR.
-See [`docs/functional-path.md`](functional-path.md) and Article 9. This is
-**not** gfx1201 ISA emulation and **not** AMDGPU memory-model evidence.
+**Phase 9** — Debugger and deterministic exploration on SoftGPU Functional IR.
+See [`docs/functional-path.md`](functional-path.md) and Article 10. This is
+**not** gfx1201 ISA emulation.
 
 ## Acceptance notes
 
 | Gate | Status |
 | --- | --- |
-| Phase 0–7 | **Met** |
-| Phase 8: shadow state, OOB/UAF/uninit, SoftGPU HB race/missing barrier, cross-WG, replay, Article 9 | **Met** |
+| Phase 0–8 | **Met** |
+| Phase 9: traces, breakpoints, snapshots, hostile reader, explore/minimize, Article 10 | **Met** |
 | HIP/HSA AQL kernel execution | **Not claimed** |
 | gfx1201 ISA | **Not started** (Phase 10+) |
 
@@ -35,10 +36,11 @@ See [`docs/functional-path.md`](functional-path.md) and Article 9. This is
 - Barriers are segment sync under `wave_barrier` schedule; divergent barriers unsupported.
 - Atomics are functional sequential ops on SoftGPU arenas.
 - Sanitizer races are SoftGPU barrier-generation happens-before, not hardware concurrency.
+- Debugger never invents SFIR→source line maps.
 
 ## Next acceptance gate
 
-Phase 9 — Debugger and deterministic exploration.
+Phase 10 — gfx1201 ISA foundation.
 
 ## High-risk assumptions remaining
 

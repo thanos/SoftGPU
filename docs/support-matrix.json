@@ -119,6 +119,13 @@
       "notes": "SoftGPU shadow + declared HB race/missing-barrier subset; softgpu-sanitizer-replay-v1; Article 9; not AMDGPU memory model"
     },
     {
+      "id": "functional-sfir-v1-debugger",
+      "category": "execution",
+      "state": "verified-unit",
+      "phase": 9,
+      "notes": "softgpu-debug-trace-v1, breakpoints, snapshots, hostile reader, seeded explore/minimize; Article 10; no invented source maps"
+    },
+    {
       "id": "abi-hip-aql-kernel-success",
       "category": "abi",
       "state": "unsupported",

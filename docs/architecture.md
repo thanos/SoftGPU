@@ -31,8 +31,8 @@ Phase 0 defines contracts, vocabulary, and a profile schema.
 Phase 1/2 add a minimal ROCr/HSA `cdylib` and one virtual GPU agent.
 Queues, AQL diagnostic intercept, AMD code-object metadata, SoftGPU
 Functional IR (`softgpu-sfir-v1`) CPU execution, Phase 7 software
-waves/group/barriers, and Phase 8 SoftGPU sanitizers are in scope through
-Phase 8.
+waves/group/barriers, Phase 8 SoftGPU sanitizers, and Phase 9 debugger/
+exploration are in scope through Phase 9.
 gfx1201 ISA interpretation remains later and evidence-driven.
 
 ## Boundaries

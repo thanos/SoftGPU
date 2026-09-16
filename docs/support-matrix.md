@@ -8,7 +8,7 @@ Allowed cell states: `implemented-unverified`, `verified-unit`, `verified-integr
 
 | Item | State | Notes |
 | --- | --- | --- |
-| macOS Apple Silicon + Rust 1.85 (`cargo test --workspace --locked`) | `verified-unit` | Phase 8 fast loop |
+| macOS Apple Silicon + Rust 1.85 (`cargo test --workspace --locked`) | `verified-unit` | Phase 9 fast loop |
 | Linux x86-64 + Rust 1.85 (no ROCm) | `verified-unit` | CI core job |
 | Linux x86-64 + pinned ROCm HIP/ROCr integration | `verified-integration` (CI) | Required `rocm-integration`; ROCm **7.14.0** |
 
@@ -22,9 +22,10 @@ Allowed cell states: `implemented-unverified`, `verified-unit`, `verified-integr
 | Agent discovery (virtual GPU, `KERNEL_DISPATCH`) | `verified-unit` (+ CI) | queue + AQL intercept claim |
 | Path C memory / signals / queues / AQL diagnostic | `verified-unit` (+ CI) | Phases 3–4 |
 | AMDGPU code-object metadata (`gfx1201` subset) | `verified-unit` (+ CI script) | `softgpu-amd-code-object` |
-| SoftGPU Functional IR CPU execution | `verified-unit` | Phase 6–8; not gfx1201 ISA |
+| SoftGPU Functional IR CPU execution | `verified-unit` | Phase 6–9; not gfx1201 ISA |
 | SoftGPU waves/group/barriers/atomics | `verified-unit` | software semantics; Article 8 |
 | SoftGPU memory/race/barrier sanitizer | `verified-unit` | declared SoftGPU HB subset; Article 9 |
+| SoftGPU debugger / traces / explore | `verified-unit` | softgpu-debug-trace-v1; Article 10 |
 | gfx1201 ISA / HIP AQL kernel success | `unsupported` | Phase 10+ / not claimed |
 
 ## Profiles

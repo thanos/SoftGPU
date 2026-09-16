@@ -96,6 +96,8 @@ pub struct ExecConfig {
     pub schedule: SchedulePolicy,
     pub step_budget: u64,
     pub sanitize: SanitizeMode,
+    /// SoftGPU Phase 9: bit0 reverses wave order under `wave_barrier`.
+    pub schedule_seed: u64,
 }
 
 impl ExecConfig {
@@ -107,6 +109,7 @@ impl ExecConfig {
             schedule: SchedulePolicy::LexWorkitem,
             step_budget: DEFAULT_STEP_BUDGET,
             sanitize: SanitizeMode::Off,
+            schedule_seed: 0,
         }
     }
 
@@ -209,7 +212,32 @@ pub fn run_with_sanitizer(
     cfg: ExecConfig,
     arena: &mut GlobalArena,
     kernarg: &[u8],
+    sanitizer: Sanitizer,
+) -> Result<(RunReport, SanitizeReport)> {
+    let mut noop = crate::debug::NoopObserver;
+    run_with_sanitizer_observer(program, cfg, arena, kernarg, sanitizer, &mut noop)
+}
+
+/// Execute with a Phase 9 observer (breakpoints / tracing).
+pub fn run_with_observer(
+    program: &Program,
+    cfg: ExecConfig,
+    arena: &mut GlobalArena,
+    kernarg: &[u8],
+    observer: &mut dyn crate::debug::ExecObserver,
+) -> Result<(RunReport, SanitizeReport)> {
+    let group_len = cfg.group_bytes.max(program.group_bytes) as usize;
+    let sanitizer = Sanitizer::new(cfg.sanitize, arena.len(), group_len)?;
+    run_with_sanitizer_observer(program, cfg, arena, kernarg, sanitizer, observer)
+}
+
+fn run_with_sanitizer_observer(
+    program: &Program,
+    cfg: ExecConfig,
+    arena: &mut GlobalArena,
+    kernarg: &[u8],
     mut sanitizer: Sanitizer,
+    observer: &mut dyn crate::debug::ExecObserver,
 ) -> Result<(RunReport, SanitizeReport)> {
     program.validate()?;
     cfg.validate(program)?;
@@ -237,6 +265,7 @@ pub fn run_with_sanitizer(
                         [gx, gy, gz],
                         cfg.step_budget.saturating_sub(steps),
                         &mut sanitizer,
+                        observer,
                     )?,
                     SchedulePolicy::WaveBarrier => run_workgroup_wave_barrier(
                         program,
@@ -247,6 +276,7 @@ pub fn run_with_sanitizer(
                         [gx, gy, gz],
                         cfg.step_budget.saturating_sub(steps),
                         &mut sanitizer,
+                        observer,
                     )?,
                 };
                 steps = steps.saturating_add(s);
@@ -287,6 +317,7 @@ fn run_workgroup_lex(
     wg: [u32; 3],
     budget: u64,
     sanitizer: &mut Sanitizer,
+    observer: &mut dyn crate::debug::ExecObserver,
 ) -> Result<(u64, u64, u64, u64)> {
     let mut steps = 0u64;
     let mut atomics = 0u64;
@@ -321,6 +352,7 @@ fn run_workgroup_lex(
                     true,
                     launch.workgroup,
                     sanitizer,
+                    observer,
                 )?;
                 steps = steps.saturating_add(used);
                 atomics = atomics.saturating_add(at);
@@ -344,6 +376,7 @@ fn run_workgroup_wave_barrier(
     wg: [u32; 3],
     budget: u64,
     sanitizer: &mut Sanitizer,
+    observer: &mut dyn crate::debug::ExecObserver,
 ) -> Result<(u64, u64, u64, u64)> {
     let launch = cfg.launch;
     let flat_n = launch.workgroup_flat();
@@ -370,9 +403,15 @@ fn run_workgroup_wave_barrier(
     let mut steps = 0u64;
     let mut atomics = 0u64;
     let n_waves = flat_n.div_ceil(cfg.wave_size);
+    let reverse = cfg.schedule_seed & 1 != 0;
 
     for (si, seg) in segments.iter().enumerate() {
-        for wave in 0..n_waves {
+        let wave_range: Vec<u32> = if reverse {
+            (0..n_waves).rev().collect()
+        } else {
+            (0..n_waves).collect()
+        };
+        for wave in wave_range {
             let lo = (wave * cfg.wave_size) as usize;
             let hi = ((wave * cfg.wave_size + cfg.wave_size).min(flat_n)) as usize;
             let mask: Vec<bool> = (lo..hi).map(|_| true).collect();
@@ -387,6 +426,7 @@ fn run_workgroup_wave_barrier(
                 false,
                 launch.workgroup,
                 sanitizer,
+                observer,
             )?;
             steps = steps.saturating_add(used);
             atomics = atomics.saturating_add(at);
@@ -396,6 +436,7 @@ fn run_workgroup_wave_barrier(
         }
         if si + 1 < segments.len() {
             sanitizer.note_barrier();
+            observer.on_barrier(sanitizer.barrier_gen)?;
         }
     }
 
@@ -458,6 +499,7 @@ fn exec_ops(
     stop_at_ret: bool,
     workgroup: [u32; 3],
     sanitizer: &mut Sanitizer,
+    observer: &mut dyn crate::debug::ExecObserver,
 ) -> Result<(u64, u64)> {
     let mut steps = 0u64;
     let mut atomics = 0u64;
@@ -505,6 +547,7 @@ fn exec_ops(
                     false,
                     workgroup,
                     sanitizer,
+                    observer,
                 )?;
                 steps = steps.saturating_add(s1);
                 atomics = atomics.saturating_add(a1);
@@ -519,6 +562,7 @@ fn exec_ops(
                     false,
                     workgroup,
                     sanitizer,
+                    observer,
                 )?;
                 steps = steps.saturating_add(s2);
                 atomics = atomics.saturating_add(a2);
@@ -550,6 +594,7 @@ fn exec_ops(
                     false,
                     workgroup,
                     sanitizer,
+                    observer,
                 )?;
                 steps = steps.saturating_add(s);
                 atomics = atomics.saturating_add(a);
@@ -570,6 +615,19 @@ fn exec_ops(
                     let at =
                         exec_lane_op(other, lane, global, group, kernarg, workgroup, sanitizer)?;
                     atomics = atomics.saturating_add(at);
+                    let actor = actor_of(lane, workgroup);
+                    match observer.on_lane_step(
+                        sanitizer.step,
+                        sanitizer.barrier_gen,
+                        actor,
+                        other,
+                        &lane.regs,
+                    )? {
+                        crate::debug::DebugAction::Continue => {}
+                        crate::debug::DebugAction::Break => {
+                            return Err(FunctionalError::DebugBreak);
+                        }
+                    }
                 }
             }
         }

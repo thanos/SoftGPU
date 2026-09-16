@@ -28,6 +28,8 @@ pub enum FunctionalError {
     },
     /// SoftGPU Phase 8 sanitizer finding (fail-fast or hard fault).
     Sanitize(Finding),
+    /// SoftGPU Phase 9 debugger requested a break (snapshot lives in DebugSession).
+    DebugBreak,
     Internal(String),
 }
 
@@ -55,6 +57,7 @@ impl fmt::Display for FunctionalError {
                 "sanitize: {:?} space={:?} addr={:#x} detail={}",
                 finding.kind, finding.space, finding.addr, finding.detail
             ),
+            Self::DebugBreak => write!(f, "debug: breakpoint"),
             Self::Internal(s) => write!(f, "internal: {s}"),
         }
     }
@@ -96,6 +99,7 @@ mod tests {
                 other: None,
                 detail: "t".into(),
             }),
+            FunctionalError::DebugBreak,
             FunctionalError::Internal("i".into()),
         ];
         for err in cases {

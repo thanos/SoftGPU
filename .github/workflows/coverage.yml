@@ -35,8 +35,8 @@ jobs:
       - name: Generate coverage (floor + LCOV + HTML)
         env:
           # Keep in sync with tools/coverage.sh defaults; bump only when intentional.
-          SOFTGPU_COV_FAIL_UNDER_LINES: "75"
-          SOFTGPU_COV_FAIL_UNDER_FUNCS: "74"
+          SOFTGPU_COV_FAIL_UNDER_LINES: "80"
+          SOFTGPU_COV_FAIL_UNDER_FUNCS: "80"
         run: |
           chmod +x tools/coverage.sh
           bash tools/coverage.sh
