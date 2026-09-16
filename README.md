@@ -11,10 +11,11 @@
 
 SoftGPU is a **Rust-first**, developer-oriented GPU **emulation, testing, debugging, sanitization, and CI** runtime. It aims to let real AMD HIP userspace talk to a SoftGPU ROCr/HSA compatibility adapter, then execute and diagnose kernels on a vendor-neutral core—without pretending to be a cycle-accurate Radeon AI PRO R9700 or inventing undocumented AMD behavior.
 
-> **v0.5.0 — Reproducible debugging beta (Phase 9):** SoftGPU Functional IR
-> debugger (traces, breakpoints, seeded schedule exploration). This is **not**
-> gfx1201 ISA emulation. See [docs/status.md](docs/status.md),
-> [docs/functional-path.md](docs/functional-path.md), and [CHANGELOG.md](CHANGELOG.md).
+> **Current tree (Phase 10 on the v0.6 line):** SoftGPU Functional IR through
+> Phase 9 **plus** a narrow, sourced gfx1201 SALU ISA subset
+> (`softgpu-gfx1201-salu-v1`). This is **not** full gfx1201 coverage and **not**
+> HIP AQL kernel success. See [docs/status.md](docs/status.md),
+> [docs/isa-path.md](docs/isa-path.md), and [CHANGELOG.md](CHANGELOG.md).
 
 ## What SoftGPU is (and is not)
 
@@ -84,6 +85,9 @@ ROCm integration details and local reproduction (Docker / Apple Container): [env
 ```text
 crates/softgpu-core/   # handles, runtime, agents, traces, profiles
 crates/softgpu-hsa/    # cdylib HSA adapter (minimal exports)
+crates/softgpu-amd-code-object/  # bounded AMDGPU ELF metadata
+crates/softgpu-amd-isa/          # gfx1201 SALU subset (Phase 10)
+crates/softgpu-functional/       # SoftGPU Functional IR (Phases 6–9)
 src/                   # softgpu CLI
 profiles/              # versioned device profiles with provenance
 third_party/rocr-headers/  # pinned hsa.h for probes (NCSA)
@@ -115,12 +119,13 @@ Linux builds of `softgpu-hsa` need the workspace [`.cargo/config.toml`](.cargo/c
 - [Unsafe / FFI policy](docs/unsafe-ffi-policy.md)
 - [ROCm x86_64 env](environments/rocm-x86_64/README.md) — pinned image; local CI via Docker or Apple Container
 - [ADR-0001](docs/adr/0001-rocr-hsa-substitution-boundary.md) · [ADR-0002](docs/adr/0002-generation-safe-handles.md)
-- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md) · [Article 7](docs/articles/07-emulation-vs-simulation.md) · [Article 8](docs/articles/08-grids-workgroups-waves.md)
+- [Article 1](docs/articles/01-why-developer-oriented-virtual-gpu.md) · [Article 2](docs/articles/02-gpu-stack-hip-to-silicon.md) · [Article 3](docs/articles/03-impersonating-a-gpu-without-lying.md) · [Article 4](docs/articles/04-hsa-queues-and-signals.md) · [Article 5](docs/articles/05-hsa-aql-dispatch.md) · [Article 6](docs/articles/06-fat-binaries-elf-code-objects.md) · [Article 7](docs/articles/07-emulation-vs-simulation.md) · [Article 8](docs/articles/08-grids-workgroups-waves.md) · [Article 9](docs/articles/09-building-gpu-sanitizers.md) · [Article 10](docs/articles/10-debugging-softgpu-lanes.md) · [Article 11](docs/articles/11-decoding-amdgpu-isa.md)
 - [Article 19 (draft)](docs/articles/19-why-rust-for-software-gpu.md)
 - [Phase 3 concurrency invariants](docs/concurrency-phase3.md)
 - [AQL diagnostic contract](docs/aql-diagnostic-contract.md)
 - [Code-object metadata](docs/code-object.md)
 - [Functional IR path](docs/functional-path.md)
+- [ISA path (Phase 10)](docs/isa-path.md)
 
 ## License
 

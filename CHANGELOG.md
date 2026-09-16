@@ -7,6 +7,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- Phase 10: `softgpu-amd-isa` sourced gfx1201 SALU foundation (`softgpu-gfx1201-salu-v1`), machine state, fail-closed traps, llvm-mc goldens, fuzz, `softgpu decode-isa` / `run-isa`, Article 11, [`docs/isa-path.md`](docs/isa-path.md).
+
+### Changed
+
+- `ACTIVE_PHASE` → `phase-10`.
+
+### Notes
+
+- Architectural ISA fidelity applies only to the named SALU subset.
+- HIP/HSA AQL kernel success remains **unsupported** (Phase 11).
+- Workspace version remains `0.5.0` until the v0.6.0 release (Phases 10–11).
+
 ## [0.5.0] — 2026-09-16
 
 ### Added

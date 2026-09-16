@@ -61,7 +61,7 @@ cargo run --locked -- debug-functional --builtin tiny_add --break-step 5
 
 ## Next gate
 
-Phase 10 — gfx1201 ISA foundation (sourced decoder tables).
+Phase 11 — first end-to-end gfx1201 kernel (after Phase 10 ISA foundation).
 
 ## References
 

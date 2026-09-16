@@ -5,6 +5,7 @@ members = [
     "crates/softgpu-core",
     "crates/softgpu-hsa",
     "crates/softgpu-amd-code-object",
+    "crates/softgpu-amd-isa",
     "crates/softgpu-functional",
 ]
 default-members = [
@@ -12,6 +13,7 @@ default-members = [
     "crates/softgpu-core",
     "crates/softgpu-hsa",
     "crates/softgpu-amd-code-object",
+    "crates/softgpu-amd-isa",
     "crates/softgpu-functional",
 ]
 
@@ -28,6 +30,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 softgpu-core = { path = "crates/softgpu-core", version = "0.5.0" }
 softgpu-amd-code-object = { path = "crates/softgpu-amd-code-object", version = "0.5.0" }
+softgpu-amd-isa = { path = "crates/softgpu-amd-isa", version = "0.5.0" }
 softgpu-functional = { path = "crates/softgpu-functional", version = "0.5.0" }
 
 [package]
@@ -49,6 +52,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 softgpu-core = { workspace = true }
 softgpu-amd-code-object = { workspace = true }
+softgpu-amd-isa = { workspace = true }
 softgpu-functional = { workspace = true }
 
 [dev-dependencies]

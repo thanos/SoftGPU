@@ -1,0 +1,156 @@
+{
+  "schema": "softgpu-isa-golden-v1",
+  "arch": "gfx1201",
+  "tool": "llvm-mc",
+  "tool_version": "Homebrew LLVM version 21.1.8",
+  "triple": "amdgcn-amd-amdhsa",
+  "mcpu": "gfx1201",
+  "access_date": "2026-09-16",
+  "source_docs": [
+    "https://llvm.org/docs/AMDGPUUsage.html",
+    "llvm-mc -arch=amdgcn -mcpu=gfx1201 -show-encoding"
+  ],
+  "license_note": "Encodings observed from LLVM tools (Apache-2.0 WITH LLVM-exception); SoftGPU tables are hand-maintained with provenance, not copied from restricted ISA manuals.",
+  "encodings": [
+    {
+      "asm": "s_nop 0",
+      "bytes_le": [
+        "0x00",
+        "0x00",
+        "0x80",
+        "0xbf"
+      ],
+      "word": "0xbf800000"
+    },
+    {
+      "asm": "s_nop 1",
+      "bytes_le": [
+        "0x01",
+        "0x00",
+        "0x80",
+        "0xbf"
+      ],
+      "word": "0xbf800001"
+    },
+    {
+      "asm": "s_endpgm",
+      "bytes_le": [
+        "0x00",
+        "0x00",
+        "0xb0",
+        "0xbf"
+      ],
+      "word": "0xbfb00000"
+    },
+    {
+      "asm": "s_sleep 1",
+      "bytes_le": [
+        "0x01",
+        "0x00",
+        "0x83",
+        "0xbf"
+      ],
+      "word": "0xbf830001"
+    },
+    {
+      "asm": "s_waitcnt 0",
+      "bytes_le": [
+        "0x00",
+        "0x00",
+        "0x89",
+        "0xbf"
+      ],
+      "word": "0xbf890000"
+    },
+    {
+      "asm": "s_mov_b32 s0, 0",
+      "bytes_le": [
+        "0x80",
+        "0x00",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe800080"
+    },
+    {
+      "asm": "s_mov_b32 s0, 1",
+      "bytes_le": [
+        "0x81",
+        "0x00",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe800081"
+    },
+    {
+      "asm": "s_mov_b32 s0, 64",
+      "bytes_le": [
+        "0xc0",
+        "0x00",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe8000c0"
+    },
+    {
+      "asm": "s_mov_b32 s0, -1",
+      "bytes_le": [
+        "0xc1",
+        "0x00",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe8000c1"
+    },
+    {
+      "asm": "s_mov_b32 s0, s1",
+      "bytes_le": [
+        "0x01",
+        "0x00",
+        "0x80",
+        "0xbe"
+      ],
+      "word": "0xbe800001"
+    },
+    {
+      "asm": "s_mov_b32 s5, s3",
+      "bytes_le": [
+        "0x03",
+        "0x00",
+        "0x85",
+        "0xbe"
+      ],
+      "word": "0xbe850003"
+    },
+    {
+      "asm": "s_add_co_u32 s0, s1, s2",
+      "bytes_le": [
+        "0x01",
+        "0x02",
+        "0x00",
+        "0x80"
+      ],
+      "word": "0x80000201"
+    },
+    {
+      "asm": "s_add_co_u32 s2, s0, s1",
+      "bytes_le": [
+        "0x00",
+        "0x01",
+        "0x02",
+        "0x80"
+      ],
+      "word": "0x80020100"
+    },
+    {
+      "asm": "s_add_co_u32 s3, s4, s5",
+      "bytes_le": [
+        "0x04",
+        "0x05",
+        "0x03",
+        "0x80"
+      ],
+      "word": "0x80030504"
+    }
+  ]
+}

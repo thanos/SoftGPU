@@ -39,4 +39,4 @@ pub use trace::{TraceEvent, TraceLog, TraceSink};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Active roadmap phase label for this crate revision.
-pub const ACTIVE_PHASE: &str = "phase-9";
+pub const ACTIVE_PHASE: &str = "phase-10";

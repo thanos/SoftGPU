@@ -13,37 +13,38 @@
 | SoftGPU waves/lanes, group memory, barriers, selected atomics | host | **Functional** | `phase7_semantics` |
 | SoftGPU memory/race/barrier sanitizer (declared subset) | host | **Sanitized** | `phase8_sanitize` |
 | SoftGPU debugger / traces / seeded schedule explore | host | **Functional** | `phase9_debug` |
-| gfx1201 ISA execution / HIP AQL kernel success | — | — | **unsupported** |
+| SoftGPU gfx1201 SALU subset (`softgpu-gfx1201-salu-v1`) | host | **Architectural ISA** | `phase10_isa` + llvm-mc goldens |
+| HIP AQL kernel success / full gfx1201 ISA | — | — | **unsupported** (Phase 11+) |
 
 ## Active phase
 
-**Phase 9** — Debugger and deterministic exploration on SoftGPU Functional IR.
-See [`docs/functional-path.md`](functional-path.md) and Article 10. This is
-**not** gfx1201 ISA emulation.
+**Phase 10** — gfx1201 ISA foundation (sourced decoder + narrow SALU interpreter).
+See [`docs/isa-path.md`](isa-path.md) and Article 11. This is **not** end-to-end
+HIP kernel execution.
 
 ## Acceptance notes
 
 | Gate | Status |
 | --- | --- |
-| Phase 0–8 | **Met** |
-| Phase 9: traces, breakpoints, snapshots, hostile reader, explore/minimize, Article 10 | **Met** |
+| Phase 0–9 | **Met** |
+| Phase 10: sourced decoder, machine state, traps, goldens, fuzz, Article 11 | **Met** |
 | HIP/HSA AQL kernel execution | **Not claimed** |
-| gfx1201 ISA | **Not started** (Phase 10+) |
+| Full gfx1201 ISA | **Not claimed** |
 
 ### Controlled subset (honest)
 
 - SoftGPU `wave_size` is a software parameter (default 32), not R9700 wavefront evidence.
-- Barriers are segment sync under `wave_barrier` schedule; divergent barriers unsupported.
-- Atomics are functional sequential ops on SoftGPU arenas.
-- Sanitizer races are SoftGPU barrier-generation happens-before, not hardware concurrency.
+- Phase 10 ISA coverage is only `softgpu-gfx1201-salu-v1` (listed in Article 11).
+- `s_waitcnt` / `s_sleep` are SoftGPU no-ops under the sequential interpreter.
 - Debugger never invents SFIR→source line maps.
 
 ## Next acceptance gate
 
-Phase 10 — gfx1201 ISA foundation.
+Phase 11 — first end-to-end gfx1201 kernel through the real dispatch path.
 
 ## High-risk assumptions remaining
 
 1. Stub HSA surface remains enough for HIP load (`ROCR_1`).
 2. Functional IR coverage remains a disclosed subset; unsupported ops fail closed.
 3. Numeric R9700 limits remain unknown.
+4. llvm-mc goldens remain the SoftGPU encoding source of truth for Phase 10 tables.
