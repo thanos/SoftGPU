@@ -43,7 +43,6 @@ jobs:
           # Full dry-run (pack + verify) for crates with no SoftGPU sibling deps.
           # Dependents need softgpu-*@$SOFTGPU_VER on crates.io; that version is
           # not uploaded until the real publish step, so dry-run cannot resolve them.
-          cargo publish -p softgpu-core --locked --dry-run
           cargo publish -p softgpu-amd-code-object --locked --dry-run
           cargo publish -p softgpu-amd-isa --locked --dry-run
           cargo publish -p softgpu-functional --locked --dry-run
@@ -61,6 +60,8 @@ jobs:
             cargo publish -p "$pkg" --locked --dry-run
           }
 
+          # softgpu-core gained SoftGPU sibling deps in v0.8 (amd-code-object, amd-isa).
+          dry_run_if_deps_published softgpu-core softgpu-amd-code-object softgpu-amd-isa
           dry_run_if_deps_published softgpu-hsa softgpu-core
           dry_run_if_deps_published softgpu softgpu-core softgpu-amd-code-object softgpu-amd-isa softgpu-functional
 
@@ -104,11 +105,12 @@ jobs:
             wait_for_crate "$pkg" "$ver"
           }
 
-          # Dependency order: core → amd-code-object → amd-isa → functional → hsa → softgpu CLI
-          publish_crate softgpu-core "$SOFTGPU_VER"
+          # Leaves first, then dependents (softgpu-core now needs amd-* siblings).
+          # Order: amd-code-object → amd-isa → functional → core → hsa → softgpu CLI
           publish_crate softgpu-amd-code-object "$SOFTGPU_VER"
           publish_crate softgpu-amd-isa "$SOFTGPU_VER"
           publish_crate softgpu-functional "$SOFTGPU_VER"
+          publish_crate softgpu-core "$SOFTGPU_VER"
           publish_crate softgpu-hsa "$SOFTGPU_VER"
           publish_crate softgpu "$SOFTGPU_VER"
 
