@@ -61,7 +61,7 @@ jobs:
 
       - name: Upload LCOV
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lcov-info
           path: lcov.info
@@ -69,7 +69,7 @@ jobs:
 
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: llvm-cov-html
           path: target/llvm-cov/html
